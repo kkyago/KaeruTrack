@@ -224,7 +224,7 @@ fun HistoryCardNew(
     val cardColor = MaterialTheme.colorScheme.surfaceContainerLow
     val textColor = MaterialTheme.colorScheme.onSurface
     val subTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val isDelivered = item.lastStatus.contains("entregue", ignoreCase = true)
+    val isDelivered = item.lastStatus.contains("entregue", ignoreCase = true) || item.lastStatus.contains("delivered", ignoreCase = true)
     val daysCount = remember(item.savedAt) {
         val diff = System.currentTimeMillis() - item.savedAt
         TimeUnit.MILLISECONDS.toDays(diff).coerceAtLeast(0)

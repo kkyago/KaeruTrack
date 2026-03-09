@@ -24,8 +24,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -40,6 +44,7 @@ import com.kaeru.app.tracking.TrackingViewModel
 import com.kaeru.app.tracking.utils.DateUtils
 import com.kaeru.app.ui.components.CpfInputDialog
 import com.kaeru.app.ui.components.KaeruLoading
+import com.kaeru.app.ui.components.TrackingShimmerSkeleton
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -72,27 +77,47 @@ fun ResultScreen(
     }
 
     if (viewModel.isLoading || viewModel.showCpfDialog) {
-        KaeruLoading()
-        if (viewModel.showCpfDialog) {
-            val isError = viewModel.errorMessage?.contains("CPF", ignoreCase = true) == true
-            CpfInputDialog(
-                title = if (isError) stringResource(R.string.cpf_incorrect_title) else stringResource(
-                    R.string.cpf_necessary_title
-                ),
-                message = if (isError) {
-                    stringResource(R.string.cpf_incorrect_desc, viewModel.pendingJtCode)
-                } else {
-                    stringResource(R.string.cpf_necessary_desc, viewModel.pendingJtCode)
-                },
-                onDismiss = {
-                    viewModel.showCpfDialog = false
-                    viewModel.errorMessage = null
-                    onBack()
-                },
-                onSubmit = { cpfDigitado ->
-                    viewModel.submitCpfAndTrack(cpfDigitado)
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.tracking)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
+                )
+            }
+        ) { padding ->
+            Box(modifier = Modifier.padding(padding)) {
+                TrackingShimmerSkeleton()
+
+                if (viewModel.showCpfDialog) {
+                    val isError = viewModel.errorMessage?.contains("CPF", ignoreCase = true) == true
+                    CpfInputDialog(
+                        title = if (isError) stringResource(R.string.cpf_incorrect_title) else stringResource(
+                            R.string.cpf_necessary_title
+                        ),
+                        message = if (isError) {
+                            stringResource(R.string.cpf_incorrect_desc, viewModel.pendingJtCode)
+                        } else {
+                            stringResource(R.string.cpf_necessary_desc, viewModel.pendingJtCode)
+                        },
+                        onDismiss = {
+                            viewModel.showCpfDialog = false
+                            viewModel.errorMessage = null
+                            onBack()
+                        },
+                        onSubmit = { cpfDigitado ->
+                            viewModel.submitCpfAndTrack(cpfDigitado)
+                        }
+                    )
                 }
-            )
+            }
         }
     } else if (viewModel.trackingResult != null) {
         Scaffold(
@@ -182,11 +207,8 @@ fun ResultScreen(
                     .padding(padding)
             ) {
                 when {
-                    viewModel.isLoading -> Box(
-                        Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = primaryColor)
+                    viewModel.isLoading -> {
+                        TrackingShimmerSkeleton()
                     }
 
                     viewModel.errorMessage != null -> {

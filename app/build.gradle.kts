@@ -54,6 +54,7 @@ android {
 }
 
 dependencies {
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
     implementation("com.kizitonwose.calendar:compose:2.10.0")
     implementation("androidx.work:work-runtime-ktx:2.11.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -61,6 +62,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation(libs.androidx.ui.graphics)
     kapt("androidx.room:room-compiler:2.8.4")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.materialkolor:material-kolor:4.0.5")

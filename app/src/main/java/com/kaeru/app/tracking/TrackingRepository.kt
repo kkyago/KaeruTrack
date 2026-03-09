@@ -62,7 +62,7 @@ class TrackingRepository(private val context: Context) {
         val result = when (carrier) {
             context.getString(R.string.carrier_correios) -> trackViaLinketrackWebView(cleanCode)
             context.getString(R.string.carrier_loggi) -> trackViaLoggi(cleanCode)
-            context.getString(R.string.carrier_shopee_xpress) -> trackViaSpxWebView(cleanCode)
+            context.getString(R.string.carrier_shopee_xpress) -> trackViaSpx(cleanCode)
             context.getString(R.string.carrier_cainiao) -> trackCainiaoFree(cleanCode)
             context.getString(R.string.carrier_anjun) -> trackViaAnjun(cleanCode)
             context.getString(R.string.carrier_melhor_envio) -> trackMelhorRastreioFree(cleanCode)
@@ -74,7 +74,7 @@ class TrackingRepository(private val context: Context) {
                     listOf("NN", "LP").any { cleanCode.startsWith(it) } -> { trackCainiaoFree(cleanCode) }
                     listOf("ME").any { cleanCode.startsWith(it) } -> { trackMelhorRastreioFree(cleanCode) }
                     listOf("AJ").any { cleanCode.startsWith(it) } -> { trackViaAnjun(cleanCode) }
-                    listOf("BR", "SPX").any { cleanCode.startsWith(it) } -> { trackViaSpxWebView(cleanCode) }
+                    listOf("BR", "SPX").any { cleanCode.startsWith(it) } -> { trackViaSpx(cleanCode) }
                     listOf("TX").any { cleanCode.startsWith(it) } || listOf("TX").any { cleanCode.endsWith(it) } -> { trackViaTotalExpress(cleanCode) }
                     listOf("AD", "AB", "AN").any { cleanCode.startsWith(it) } -> { trackViaLinketrackWebView(cleanCode) }
                     cleanCode.all { it.isDigit() } -> {
@@ -90,6 +90,43 @@ class TrackingRepository(private val context: Context) {
         }
 
         return result
+    }
+
+    private suspend fun trackViaSpx(code: String): TrackingResponse? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://spx.com.br/shipment/order/open/order/get_order_info?spx_tn=$code&language_code=pt"
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                    .build()
+                val response = client.newCall(request).execute()
+                val bodyString = response.body?.string() ?: return@withContext null
+                val rawData = gson.fromJson(bodyString, SpxResponse::class.java)
+                val records = rawData.data?.slsTrackingInfo?.records ?: return@withContext null
+                val uiEvents = records.map { record ->
+                    val dateObj = java.util.Date(record.actualTime * 1000L)
+                    val sdfDate = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+                    val sdfTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                    val d = sdfDate.format(dateObj)
+                    val t = sdfTime.format(dateObj)
+                    val stat = record.buyerDescription.ifBlank { record.description }.trim()
+                    val loc = record.currentLocation.ifBlank { "Em Trânsito" } ?: "Em Trânsito"
+
+                    TrackingEvent(
+                        status = loc,
+                        date = d,
+                        time = t,
+                        location = stat,
+                        subStatus = null
+                    )
+                }
+                return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
     }
 
     suspend fun trackViaJTExpress(code: String, cpf: String?): TrackingResponse? {
@@ -235,18 +272,6 @@ class TrackingRepository(private val context: Context) {
             return null
         }
         return LinketrackParser.parseHtml(html, cleanCode)
-    }
-
-    private suspend fun trackViaSpxWebView(code: String): TrackingResponse? {
-        val cleanCode = code.substringBefore("|").trim()
-        val scraper = SpxScraper(context)
-        val html = scraper.fetchHtml(cleanCode)
-
-        if (html.isNullOrBlank()) {
-            return null
-        }
-
-        return SpxParser.parseHtml(html, cleanCode)
     }
 
     private suspend fun trackViaLoggi(code: String): TrackingResponse? {
