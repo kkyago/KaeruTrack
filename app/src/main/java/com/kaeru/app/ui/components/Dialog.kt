@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kaeru.app.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -293,6 +294,78 @@ fun TextFieldDialog(
                 )
             }
             extraContent?.invoke()
+        }
+    }
+}
+
+@Composable
+fun CpfInputDialog(
+    title: String,
+    message: String,
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    var cpfInput by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(300)
+        focusRequester.requestFocus()
+    }
+
+    DefaultDialog(
+        onDismiss = onDismiss,
+        title = { Text(title) },
+        buttons = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+            TextButton(
+                onClick = {
+                    onSubmit(cpfInput)
+                },
+                enabled = cpfInput.length == 11
+            ) {
+                Text(stringResource(android.R.string.ok))
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = cpfInput,
+                onValueChange = { novoValor ->
+                    val apenasNumeros = novoValor.filter { it.isDigit() }
+                    if (apenasNumeros.length <= 11) {
+                        cpfInput = apenasNumeros
+                    }
+                },
+                label = { Text(stringResource(R.string.cpf_only_numbers)) },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (cpfInput.length == 11) {
+                            onDismiss()
+                            onSubmit(cpfInput)
+                        }
+                    }
+                ),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+            )
         }
     }
 }

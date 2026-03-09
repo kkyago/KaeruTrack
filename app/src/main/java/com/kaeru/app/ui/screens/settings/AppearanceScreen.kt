@@ -136,7 +136,7 @@ fun AppearanceScreen(
                         viewModel.setDefaultHistoryFilter(it)
                         showFilterDialog = false
                     },
-                    title = "Filtro padrão do histórico",
+                    title = " ",
                     current = currentFilter,
                     values = TrackingFilter.entries,
                     valueText = {
@@ -155,7 +155,7 @@ fun AppearanceScreen(
                         viewModel.setDefaultTab(it)
                         showTabDialog = false
                     },
-                    title = "Escolha a aba inicial",
+                    title = " ",
                     current = currentTab,
                     values = AppDestinations.entries,
                     valueText = {

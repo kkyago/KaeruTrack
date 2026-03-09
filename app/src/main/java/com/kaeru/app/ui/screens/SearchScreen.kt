@@ -32,7 +32,7 @@ fun SearchScreen(
     val finalCode = trackingCode.uppercase().trim()
     val focusManager = LocalFocusManager.current
 
-    val carriers = listOf("Auto", "Correios", "Loggi", "Shopee", "AliExpress", "Shein", "Melhor Envio", "Total Express")
+    val carriers = listOf("Auto", stringResource(R.string.carrier_correios), stringResource(R.string.carrier_loggi), stringResource(R.string.carrier_shopee_xpress), stringResource(R.string.carrier_cainiao), stringResource(R.string.carrier_anjun), stringResource(R.string.carrier_melhor_envio), stringResource(R.string.carrier_total_express), stringResource(R.string.carrier_jt))
     var selectedCarrier by remember { mutableStateOf(carriers[0]) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
 

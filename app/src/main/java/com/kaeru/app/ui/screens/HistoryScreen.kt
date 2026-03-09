@@ -341,7 +341,7 @@ fun HistoryCardNew(
                         }
                     }
                     Text(
-                        text = "há $calculatedDays dias",
+                        text = stringResource(R.string.days_ago, calculatedDays),
                         color = subTextColor,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -419,14 +419,14 @@ fun EmptyHistoryState(modifier: Modifier = Modifier) {
     ) {
         Image(
             painter = painterResource(id = R.drawable.ic_empty_screen),
-            contentDescription = "Histórico vazio",
+            contentDescription = null,
             modifier = Modifier
                 .size(220.dp)
                 .padding(bottom = 24.dp),
             colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
         )
         Text(
-            text = "Parece meio vazio aqui...",
+            text = stringResource(R.string.empty_screen_title),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 22.sp,
             modifier = Modifier
@@ -434,7 +434,7 @@ fun EmptyHistoryState(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center
         )
         Text(
-            text = "Ainda sem encomendas",
+            text = stringResource(R.string.empty_screen_description),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )

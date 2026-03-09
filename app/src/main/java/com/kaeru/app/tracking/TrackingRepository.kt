@@ -1,21 +1,34 @@
 package com.kaeru.app.tracking
 
 import android.content.Context
-import android.util.Log
 import com.google.gson.Gson
+import com.kaeru.app.R
 import com.kaeru.app.data.scraper.LinketrackWebViewScraper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Cookie
+import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.jsoup.Jsoup
+import okhttp3.CookieJar
+import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 class TrackingRepository(private val context: Context) {
 
     private val client = OkHttpClient.Builder()
+        .cookieJar(object : CookieJar {
+            private val cookieStore = mutableMapOf<String, List<Cookie>>()
+            override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+                cookieStore[url.host] = cookies
+            }
+            override fun loadForRequest(url: HttpUrl): List<Cookie> {
+                return cookieStore[url.host] ?: listOf()
+            }
+        })
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
@@ -32,30 +45,29 @@ class TrackingRepository(private val context: Context) {
             listOf("BR", "SPX").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
             listOf("TX").any { cleanCode.startsWith(it) } || listOf("TX").any { cleanCode.endsWith(it) } -> true
             listOf("AD", "AB", "AN").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
+            cleanCode.all { it.isDigit() } && cleanCode.length >= 10 -> true
             else -> false
         }
     }
-    suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto"): TrackingResponse? {
+    suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto", cpf: String? = null): TrackingResponse? {
         val cleanCode = code.trim().uppercase()
 
         if (!forceRefresh) {
             val cached = TrackingCache.get(cleanCode)
             if (cached != null) {
-                Log.d("TRACKING", "Recuperado da memória RAM: $cleanCode")
                 return cached
             }
         }
 
-        Log.d("TRACKING", "Baixando da internet: $cleanCode")
-
         val result = when (carrier) {
-            "Correios" -> trackViaLinketrackWebView(cleanCode)
-            "Loggi" -> trackViaLoggi(cleanCode)
-            "Shopee" -> trackViaSpxWebView(cleanCode)
-            "AliExpress" -> trackCainiaoFree(cleanCode)
-            "Shein" -> trackViaAnjun(cleanCode)
-            "Melhor Envio" -> trackMelhorRastreioFree(cleanCode)
-            "Total Express" -> trackViaTotalExpress(cleanCode)
+            context.getString(R.string.carrier_correios) -> trackViaLinketrackWebView(cleanCode)
+            context.getString(R.string.carrier_loggi) -> trackViaLoggi(cleanCode)
+            context.getString(R.string.carrier_shopee_xpress) -> trackViaSpxWebView(cleanCode)
+            context.getString(R.string.carrier_cainiao) -> trackCainiaoFree(cleanCode)
+            context.getString(R.string.carrier_anjun) -> trackViaAnjun(cleanCode)
+            context.getString(R.string.carrier_melhor_envio) -> trackMelhorRastreioFree(cleanCode)
+            context.getString(R.string.carrier_total_express) -> trackViaTotalExpress(cleanCode)
+            context.getString(R.string.carrier_jt) -> trackViaJTExpress(cleanCode, cpf)
             else -> {
                 when {
                     listOf("MZ", "LJ", "LOG").any { cleanCode.startsWith(it) } -> { trackViaLoggi(cleanCode) }
@@ -65,6 +77,9 @@ class TrackingRepository(private val context: Context) {
                     listOf("BR", "SPX").any { cleanCode.startsWith(it) } -> { trackViaSpxWebView(cleanCode) }
                     listOf("TX").any { cleanCode.startsWith(it) } || listOf("TX").any { cleanCode.endsWith(it) } -> { trackViaTotalExpress(cleanCode) }
                     listOf("AD", "AB", "AN").any { cleanCode.startsWith(it) } -> { trackViaLinketrackWebView(cleanCode) }
+                    cleanCode.all { it.isDigit() } -> {
+                        trackViaJTExpress(cleanCode, cpf)
+                    }
                     else -> { null }
                 }
             }
@@ -75,6 +90,74 @@ class TrackingRepository(private val context: Context) {
         }
 
         return result
+    }
+
+    suspend fun trackViaJTExpress(code: String, cpf: String?): TrackingResponse? {
+        return withContext(Dispatchers.IO) {
+            try {
+                if (cpf.isNullOrBlank()) {
+                    return@withContext null
+                }
+                val url = "https://official.jtjms-br.com/official/logisticsTracking/v2/getDetailByWaybillNo"
+                val appId = "3B29A9C5728BF3E1DB0C4D66B79748B7"
+                val key = "94bbcac67ab47c736d530efe3e1dc358"
+                val time = System.currentTimeMillis().toString()
+                val nonce = Math.random().toString()
+                val jsonPayload = """{"cpf":"$cpf","langType":"PT","waybillNo":"$code"}"""
+                val rawString = appId + time + nonce + jsonPayload + key
+                val sign = rawString.md5().uppercase()
+                val body = jsonPayload.toRequestBody("application/json".toMediaType())
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .addHeader("appId", appId)
+                    .addHeader("key", key)
+                    .addHeader("timestamp", time)
+                    .addHeader("nonce", nonce)
+                    .addHeader("sign", sign)
+                    .addHeader("langType", "PT")
+                    .addHeader("clientSource", "web")
+                    .addHeader("timezone", "GMT-0300")
+                    .addHeader("Origin", "https://www.jtexpress.com.br")
+                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .build()
+                val response = client.newCall(request).execute()
+                val rawData = gson.fromJson(response.body?.string(), JTExpressResponse::class.java)
+                if (rawData?.success != true || rawData.data?.details == null) {
+                    return@withContext null
+                }
+                val uiEvents = rawData.data.details.map { detail ->
+                    val parts = (detail.dateString ?: "").split(" ")
+                    val d = try {
+                        val s = parts.getOrElse(0) { "" }.split("-")
+                        "${s[2]}/${s[1]}/${s[0]}"
+                    } catch(e: Exception) {
+                        parts.getOrElse(0) { "" }
+                    }
+                    var loc = "Nacional"
+                    var stat = detail.statusTitle ?: "Status atualizado"
+                    var desc = detail.description ?: ""
+                    val m = Regex("^\\[(.*?)\\](.*)").find(stat)
+                    if (m != null) {
+                        loc = m.groupValues[1].trim()
+                        stat = m.groupValues[2].trim().removePrefix("-").trim()
+                    }
+
+                    TrackingEvent(
+                        status = stat,
+                        date = d,
+                        time = parts.getOrElse(1) { "" },
+                        location = desc,
+                        subStatus = null
+                    )
+                }
+
+                return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
+
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 
     private suspend fun trackViaTotalExpress(code: String): TrackingResponse? {
@@ -133,15 +216,11 @@ class TrackingRepository(private val context: Context) {
                 }
 
                 if (events.isEmpty()) {
-                    Log.e("TOTAL_EXPRESS", "Eventos vazios após mapeamento.")
                     return@withContext null
                 }
-
-                Log.d("TOTAL_EXPRESS", "Sucesso! Foram mapeados ${events.size} eventos.")
                 return@withContext TrackingResponse(tracking_code = code, events = events.reversed())
 
             } catch (e: Exception) {
-                Log.e("TOTAL_EXPRESS", "Erro fatal no rastreio: ${e.message}")
                 e.printStackTrace()
                 null
             }
@@ -150,30 +229,20 @@ class TrackingRepository(private val context: Context) {
 
     private suspend fun trackViaLinketrackWebView(code: String): TrackingResponse? {
         val cleanCode = code.substringBefore("|").trim()
-
-        Log.d("TRACKING", "Iniciando Linketrack WebView Scraper para $cleanCode...")
-
         val scraper = LinketrackWebViewScraper(context)
-
         val html = scraper.fetchHtml(cleanCode)
-
         if (html.isNullOrBlank()) {
-            Log.e("TRACKING", "Linketrack Scraper retornou vazio (Timeout ou Erro).")
             return null
         }
-
-        Log.d("TRACKING", "HTML recebido! Iniciando parse...")
         return LinketrackParser.parseHtml(html, cleanCode)
     }
 
     private suspend fun trackViaSpxWebView(code: String): TrackingResponse? {
         val cleanCode = code.substringBefore("|").trim()
-        Log.d("TRACKING", "Iniciando SPX Scraper para $cleanCode...")
         val scraper = SpxScraper(context)
         val html = scraper.fetchHtml(cleanCode)
 
         if (html.isNullOrBlank()) {
-            Log.e("TRACKING", "SPX Scraper retornou vazio.")
             return null
         }
 
@@ -260,4 +329,9 @@ class TrackingRepository(private val context: Context) {
             } catch(e:Exception){ null }
         }
     }
+}
+
+fun String.md5(): String {
+    val bytes = MessageDigest.getInstance("MD5").digest(this.toByteArray())
+    return bytes.joinToString("") { "%02X".format(it) }
 }

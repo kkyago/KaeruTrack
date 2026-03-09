@@ -139,8 +139,11 @@ class TrackingViewModel(
     var errorMessage by mutableStateOf<String?>(null)
     var showSaveDialog by mutableStateOf(false)
     var packageDescription by mutableStateOf("")
-    private val _isSwipeToDeleteEnabled = MutableStateFlow(prefs.getBoolean("swipe_to_delete", false)) // Vou deixar 'false' como padrão já que você odiou rs
+    private val _isSwipeToDeleteEnabled = MutableStateFlow(prefs.getBoolean("swipe_to_delete", false))
     val isSwipeToDeleteEnabled: StateFlow<Boolean> = _isSwipeToDeleteEnabled.asStateFlow()
+    var showCpfDialog by mutableStateOf(false)
+    var pendingJtCode by mutableStateOf("")
+    var currentCpf by mutableStateOf<String?>(null)
 
     fun toggleSwipeToDelete(enabled: Boolean) {
         _isSwipeToDeleteEnabled.value = enabled
@@ -172,26 +175,40 @@ class TrackingViewModel(
         prefs.edit().putString("default_filter", filter.name).apply()
     }
     private var searchJob: Job? = null
-    fun trackPackage(code: String, carrier: String = "Auto") {
+    fun trackPackage(code: String, carrier: String = "Auto", providedCpf: String? = null) {
         searchJob?.cancel()
         errorMessage = null
         trackingResult = null
-        if (carrier == "Auto" && !repository.isCarrierSupported(code)) {
+        val cleanCode = code.trim()
+        if (carrier == "Auto" && !repository.isCarrierSupported(cleanCode)) {
             isLoading = false
             return
         }
         isLoading = true
         searchJob = viewModelScope.launch {
-            val savedItem = historyList.value.find { it.code == code }
+            val savedItem = historyList.value.find { it.code == cleanCode }
+            var resolvedCpf = providedCpf
+            if (cleanCode.length >= 10 && cleanCode.all { it.isDigit() }) {
+                val cpfToUse = providedCpf ?: savedItem?.cpf ?: currentCpf
+
+                if (cpfToUse.isNullOrEmpty()) {
+                    pendingJtCode = cleanCode
+                    showCpfDialog = true
+                    isLoading = false
+                    return@launch
+                }
+                resolvedCpf = cpfToUse
+                currentCpf = cpfToUse
+            }
             val isAlreadyDelivered = savedItem?.lastStatus?.contains("Entregue", ignoreCase = true) == true ||
                     savedItem?.lastStatus?.contains("Delivered", ignoreCase = true) == true
             if (isAlreadyDelivered) {
-                val cached = TrackingCache.get(code)
+                val cached = TrackingCache.get(cleanCode)
                 if (cached != null) {
                     trackingResult = cached
                 } else {
                     trackingResult = TrackingResponse(
-                        tracking_code = code,
+                        tracking_code = cleanCode,
                         events = listOf(
                             TrackingEvent(
                                 status = savedItem.lastStatus,
@@ -206,14 +223,28 @@ class TrackingViewModel(
                 isLoading = false
                 return@launch
             }
-            val response = repository.trackPackage(code, forceRefresh = true, carrier = carrier)
+            val response = repository.trackPackage(cleanCode, forceRefresh = true, carrier = carrier, cpf = resolvedCpf)
             if (response != null) {
                 trackingResult = response
-                updateHistoryStatusIfExists(code, response)
+                updateHistoryStatusIfExists(cleanCode, response)
+            } else {
+                if (cleanCode.length >= 10 && cleanCode.all { it.isDigit() } && providedCpf != null) {
+                errorMessage = "Erro de CPF"
+                showCpfDialog = true
             } else {
                 errorMessage = "Pacote não encontrado ou erro na conexão."
             }
+            }
             isLoading = false
+        }
+    }
+
+    fun submitCpfAndTrack(cpfDigitado: String) {
+        showCpfDialog = false
+        errorMessage = null
+        val codeToTrack = pendingJtCode
+        if (codeToTrack.isNotEmpty() && cpfDigitado.isNotEmpty()) {
+            trackPackage(code = codeToTrack, providedCpf = cpfDigitado)
         }
     }
 
@@ -249,7 +280,8 @@ class TrackingViewModel(
                 description = packageDescription.ifBlank { "Encomenda Sem Nome" },
                 lastStatus = lastEvent?.status ?: "Aguardando",
                 lastDate = lastEvent?.date ?: "",
-                firstDate = firstEvent?.date ?: ""
+                firstDate = firstEvent?.date ?: "",
+                cpf = currentCpf
             )
             dao.insertTracking(entity)
 
@@ -284,6 +316,7 @@ class TrackingViewModel(
             lastStatus = latestEvent.status ?: savedItem.lastStatus,
             lastDate = "${latestEvent.date ?: ""} ${latestEvent.time ?: ""}".trim(),
             firstDate = "${firstEvent.date ?: ""} ${firstEvent.time ?: ""}".trim(),
+            cpf = currentCpf ?: savedItem.cpf,
         )
         dao.insertTracking(updatedItem)
     }

@@ -38,6 +38,7 @@ import com.kaeru.app.R
 import com.kaeru.app.tracking.TrackingEvent
 import com.kaeru.app.tracking.TrackingViewModel
 import com.kaeru.app.tracking.utils.DateUtils
+import com.kaeru.app.ui.components.CpfInputDialog
 import com.kaeru.app.ui.components.KaeruLoading
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -70,8 +71,29 @@ fun ResultScreen(
         }
     }
 
-    if (viewModel.isLoading) {
+    if (viewModel.isLoading || viewModel.showCpfDialog) {
         KaeruLoading()
+        if (viewModel.showCpfDialog) {
+            val isError = viewModel.errorMessage?.contains("CPF", ignoreCase = true) == true
+            CpfInputDialog(
+                title = if (isError) stringResource(R.string.cpf_incorrect_title) else stringResource(
+                    R.string.cpf_necessary_title
+                ),
+                message = if (isError) {
+                    stringResource(R.string.cpf_incorrect_desc, viewModel.pendingJtCode)
+                } else {
+                    stringResource(R.string.cpf_necessary_desc, viewModel.pendingJtCode)
+                },
+                onDismiss = {
+                    viewModel.showCpfDialog = false
+                    viewModel.errorMessage = null
+                    onBack()
+                },
+                onSubmit = { cpfDigitado ->
+                    viewModel.submitCpfAndTrack(cpfDigitado)
+                }
+            )
+        }
     } else if (viewModel.trackingResult != null) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,

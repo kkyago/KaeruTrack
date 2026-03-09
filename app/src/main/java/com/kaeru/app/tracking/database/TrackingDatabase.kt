@@ -19,6 +19,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("ALTER TABLE tracking_history ADD COLUMN firstDate TEXT DEFAULT NULL")
     }
 }
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tracking_history ADD COLUMN cpf TEXT DEFAULT NULL")
+    }
+}
 
 @Entity(tableName = "tracking_history")
 data class TrackingEntity(
@@ -27,7 +32,8 @@ data class TrackingEntity(
     val lastStatus: String,
     val lastDate: String,
     val firstDate: String? = null,
-    val savedAt: Long = System.currentTimeMillis()
+    val savedAt: Long = System.currentTimeMillis(),
+    val cpf: String? = null
 )
 @Dao
 interface TrackingDao {
@@ -41,8 +47,10 @@ interface TrackingDao {
     suspend fun insertAll(trackings: List<TrackingEntity>)
     @Query("UPDATE tracking_history SET description = :newDescription WHERE code = :code")
     suspend fun updateDescription(code: String, newDescription: String)
+    @Query("SELECT cpf FROM tracking_history WHERE code = :code")
+    suspend fun getCpf(code: String): String?
 }
-@Database(entities = [TrackingEntity::class], version = 2, exportSchema = false)
+@Database(entities = [TrackingEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun trackingDao(): TrackingDao
@@ -56,7 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kaeru_track_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance
