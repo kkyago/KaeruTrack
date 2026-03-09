@@ -2,32 +2,44 @@ package com.kaeru.app.tracking
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.kaeru.app.R
+import androidx.core.net.toUri
 
 class NotificationHelper(private val context: Context) {
-    private val CHANNEL_ID = "kaerutrack_updates"
+    private val TRACKING_CHANNEL_ID = "kaerutrack_updates"
+    private val APP_UPDATE_CHANNEL_ID = "kaeru_app_updates"
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     init {
-        createChannel()
+        createChannels()
     }
 
-    private fun createChannel() {
+    private fun createChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID,
+                TRACKING_CHANNEL_ID,
                 "Atualizações de Encomendas",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Avisa quando sua encomenda muda de status"
             }
+            val updateChannel = NotificationChannel(
+                APP_UPDATE_CHANNEL_ID,
+                "Atualizações do app",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Avisa quando há uma nova versão disponível"
+            }
             notificationManager.createNotificationChannel(channel)
         }
     }
     fun showNotification(trackingCode: String, newStatus: String) {
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, TRACKING_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher_foreground)
             .setContentTitle("Atualização: $trackingCode")
             .setContentText(newStatus)
@@ -35,5 +47,28 @@ class NotificationHelper(private val context: Context) {
             .setAutoCancel(true)
             .build()
         notificationManager.notify(trackingCode.hashCode(), notification)
+    }
+    fun showUpdateNotification(version: String, url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, APP_UPDATE_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setContentTitle("Atualização disponível!")
+            .setContentText("A versão $version do Kaeru já está disponível para download.")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+
+        notificationManager.notify(999, notification)
     }
 }

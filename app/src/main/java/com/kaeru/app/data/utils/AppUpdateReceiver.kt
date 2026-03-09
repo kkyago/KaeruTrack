@@ -11,6 +11,7 @@ class AppUpdateReceiver : BroadcastReceiver() {
 
         if (action == Intent.ACTION_MY_PACKAGE_REPLACED || action == Intent.ACTION_BOOT_COMPLETED) {
             TrackingViewModel.scheduleTrackingWorker(context)
+            TrackingViewModel.scheduleUpdateWorker(context)
         }
     }
 }

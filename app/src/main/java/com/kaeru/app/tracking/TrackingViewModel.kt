@@ -36,6 +36,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kaeru.app.AppDestinations
+import com.kaeru.app.data.utils.UpdateWorker
 import com.kaeru.app.ui.screens.TrackingFilter
 import com.kaeru.app.ui.screens.settings.SYSTEM_DEFAULT
 import java.util.concurrent.TimeUnit
@@ -262,6 +263,22 @@ class TrackingViewModel(
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "KaeruTrackingWorker",
+                ExistingPeriodicWorkPolicy.KEEP,
+                periodicRequest
+            )
+        }
+
+        fun scheduleUpdateWorker(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+            val periodicRequest = PeriodicWorkRequestBuilder<UpdateWorker>(
+                1, TimeUnit.HOURS
+            )
+                .setConstraints(constraints)
+                .build()
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "KaeruUpdateWorker",
                 ExistingPeriodicWorkPolicy.KEEP,
                 periodicRequest
             )

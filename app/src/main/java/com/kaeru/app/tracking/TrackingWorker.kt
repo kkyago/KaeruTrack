@@ -22,8 +22,8 @@ class TrackingWorker(
         val isFakeTest = inputData.getBoolean("is_fake_test", false)
         if (isFakeTest) {
             notificationHelper.showNotification(
-                trackingCode = "TESTE-01",
-                newStatus = "Opa! O sistema de notificações está ativo! 🐸"
+                trackingCode = "xxx",
+                newStatus = "xxx"
             )
             return Result.success()
         }
