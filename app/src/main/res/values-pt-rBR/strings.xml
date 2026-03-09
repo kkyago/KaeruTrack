@@ -98,4 +98,12 @@
     <string name="appearance">Aparência</string>
     <string name="deleted_order">Encomenda apagada</string>
     <string name="undo_action">Desfazer</string>
+    <string name="days_ago">há %1$s dias</string>
+    <string name="empty_screen_title">Parece meio vazio aqui...</string>
+    <string name="empty_screen_description">Ainda sem encomendas</string>
+    <string name="cpf_only_numbers">CPF (apenas números)</string>
+    <string name="cpf_incorrect_title">CPF Incorreto</string>
+    <string name="cpf_necessary_title">CPF Necessário</string>
+    <string name="cpf_incorrect_desc">Os dados não batem. Verifique se o CPF pertence ao destinatário da encomenda: %1$s.</string>
+    <string name="cpf_necessary_desc"><![CDATA[A J&T Express exige o CPF do destinatário para liberar o rastreio da encomenda: %1$s.]]></string>
 </resources>

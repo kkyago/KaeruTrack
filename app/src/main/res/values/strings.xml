@@ -37,6 +37,7 @@
     <string name="carrier_correios">Correios</string>
     <string name="carrier_loggi">Loggi</string>
     <string name="carrier_shopee_xpress">Shopee Xpress</string>
+    <string name="carrier_total_express">Total Express</string>
     <string name="items_in_transit">Items in transit</string>
     <string name="statistics">Statistics</string>
     <string name="delivered_items">Delivered items</string>
@@ -99,4 +100,12 @@
     <string name="appearance">Appearance</string>
     <string name="deleted_order">Order deleted</string>
     <string name="undo_action">Undo</string>
+    <string name="days_ago">For %1$s days</string>
+    <string name="empty_screen_title">It seems kinda empty here...</string>
+    <string name="empty_screen_description">No packages yet</string>
+    <string name="cpf_only_numbers">CPF (numbers only)</string>
+    <string name="cpf_incorrect_title">Incorrect CPF</string>
+    <string name="cpf_necessary_title">CPF Required</string>
+    <string name="cpf_incorrect_desc">Data mismatch. Please check if the CPF belongs to the recipient of package: %1$s.</string>
+    <string name="cpf_necessary_desc"><![CDATA[J&T Express requires the recipient\'s CPF to release tracking for package: %1$s.]]></string>
 </resources>
