@@ -178,12 +178,22 @@ fun SearchScreen(
                         painter = painterResource(R.drawable.ic_shein),
                         contentDescription = null
                     )
+                }
+                Row {
                     Icon(
                         painter = painterResource(R.drawable.ic_loggi),
                         contentDescription = null
                     )
                     Icon(
                         painter = painterResource(R.drawable.ic_melhor_envio),
+                        contentDescription = null
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_tex),
+                        contentDescription = null
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_jtex),
                         contentDescription = null
                     )
                 }

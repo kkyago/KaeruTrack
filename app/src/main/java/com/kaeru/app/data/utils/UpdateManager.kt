@@ -56,4 +56,13 @@ class UpdateManager {
             e.printStackTrace()
         }
     }
+
+    suspend fun getAllReleases(): Result<List<GithubRelease>> {
+        return try {
+            val releases = api.getReleases()
+            Result.success(releases)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

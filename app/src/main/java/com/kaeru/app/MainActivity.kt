@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -41,6 +42,8 @@ import com.kaeru.app.tracking.database.AppDatabase
 import com.kaeru.app.ui.screens.*
 import com.kaeru.app.ui.screens.settings.*
 import com.kaeru.app.ui.theme.KaeruTrackTheme
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.content.edit
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -79,6 +82,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         askNotificationPermission()
         enableEdgeToEdge()
+        installSplashScreen()
 
         val db = AppDatabase.getDatabase(applicationContext)
         val dao = db.trackingDao()
@@ -111,6 +115,9 @@ class MainActivity : ComponentActivity() {
             var updateRelease by remember { mutableStateOf<GithubRelease?>(null) }
             val updateManager = remember { UpdateManager() }
             val checkUpdatesEnabled by trackingViewModel.checkUpdatesOnStart.collectAsState()
+            val context = LocalContext.current
+            val sharedPreferences = remember { context.getSharedPreferences("kaeru_prefs", Context.MODE_PRIVATE) }
+            var showChangelog by rememberSaveable { mutableStateOf(false) }
 
             LaunchedEffect(Unit) {
                 if (checkUpdatesEnabled) {
@@ -118,6 +125,12 @@ class MainActivity : ComponentActivity() {
                 } else {
                     updateRelease = null
                 }
+                val lastSeenVersion = sharedPreferences.getString("last_seen_version", "") ?: ""
+                val currentVersion = BuildConfig.VERSION_NAME
+                if (lastSeenVersion != currentVersion) {
+                    showChangelog = true
+                }
+                sharedPreferences.edit().putString("last_seen_version", currentVersion).apply()
             } //checagem de att ao abrir (essencial pra badge e changelogs)
 
             KaeruTrackTheme(
@@ -125,11 +138,23 @@ class MainActivity : ComponentActivity() {
                 pureBlack = isAmoled,
                 seedColor = Color(themeColorInt)
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    KaeruNavGraph(viewModel = trackingViewModel, updateRelease = updateRelease,)
+                var showSplash by remember { mutableStateOf(true) }
+                if (showSplash) {
+                    SplashScreen(
+                        onSplashFinished = {
+                            showSplash = false
+                        }
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        KaeruNavGraph(viewModel = trackingViewModel, updateRelease = updateRelease)
+                        if (showChangelog) {
+                            ChangelogSheet(onDismiss = { showChangelog = false })
+                        }
+                    }
                 }
             }
         }
@@ -299,7 +324,7 @@ fun KaeruTabsScreen(
                     )
                 }
             }
-        }
+        },
     ) { innerPadding ->
         Box(
             modifier = Modifier

@@ -24,12 +24,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -42,11 +38,10 @@ import com.kaeru.app.R
 import com.kaeru.app.tracking.TrackingEvent
 import com.kaeru.app.tracking.TrackingViewModel
 import com.kaeru.app.tracking.utils.DateUtils
+import com.kaeru.app.tracking.utils.TrackingCarrier
+import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.components.CpfInputDialog
-import com.kaeru.app.ui.components.KaeruLoading
 import com.kaeru.app.ui.components.TrackingShimmerSkeleton
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 val SoftRed = Color(0xFFEF5350)
 
@@ -346,17 +341,7 @@ fun ResultScreen(
 }
 
 fun detectCarrier(code: String): Int {
-    val clean = code.uppercase()
-    return when {
-        clean.startsWith("MZ") || clean.startsWith("LJ") || clean.startsWith("LOG") -> R.string.carrier_loggi
-        clean.startsWith("AJ") -> R.string.carrier_anjun
-        clean.startsWith("NN") || clean.startsWith("LP") -> R.string.carrier_cainiao
-        clean.startsWith("JT") -> R.string.carrier_jt
-        clean.startsWith("ME") -> R.string.carrier_melhor_envio
-        clean.startsWith("BR") && !clean.endsWith("BR") || clean.startsWith("SPX") -> R.string.carrier_shopee_xpress
-        clean.matches(Regex("[A-Z]{2}[0-9]{9}BR")) -> R.string.carrier_correios
-        else -> R.string.unknown
-    }
+    return TrackingCarrier.fromCode(code).nameRes
 }
 
 @Composable
@@ -367,7 +352,7 @@ fun TrackingHeaderCardCompact(
     onCopy: (String) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val isDelivered = lastStatus.contains("entregue", ignoreCase = true)
+    val isDelivered = lastStatus.isDeliveredStatus()
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -489,8 +474,14 @@ fun LatestEventCard(event: TrackingEvent) {
                     .background(primaryColor, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                val icon = if (event.status?.contains("entregue", true) == true) Icons.Default.Check else Icons.Default.LocalShipping
-                Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                val isDelivered = event.status?.isDeliveredStatus() ?: false
+                val icon = if (isDelivered) Icons.Default.Check else Icons.Default.LocalShipping
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         Spacer(modifier = Modifier.width(16.dp))

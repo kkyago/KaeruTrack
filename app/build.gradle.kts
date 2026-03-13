@@ -15,8 +15,8 @@ android {
         applicationId = "com.kaeru.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 40101
-        versionName = "4.1.1"
+        versionCode = 50000
+        versionName = "5.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,6 +54,7 @@ android {
 }
 
 dependencies {
+    implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
     implementation("com.kizitonwose.calendar:compose:2.10.0")
     implementation("androidx.work:work-runtime-ktx:2.11.1")

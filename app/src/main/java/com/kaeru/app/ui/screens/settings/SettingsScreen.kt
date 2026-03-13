@@ -33,6 +33,7 @@ import com.kaeru.app.tracking.TrackingViewModel
 import com.kaeru.app.ui.components.EnumDialog
 import com.kaeru.app.ui.components.ReleaseNotesCard
 import android.provider.Settings
+import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.runtime.setValue
 import com.kaeru.app.data.utils.GithubRelease
 import com.kaeru.app.data.utils.UpdateManager
@@ -54,6 +55,7 @@ fun SettingsScreen(
     val activity = context as? Activity
     var showAppLanguageDialog by rememberSaveable { mutableStateOf(false) }
     val appLanguage by viewModel.appLanguage.collectAsState()
+    var showChangelog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -164,6 +166,13 @@ fun SettingsScreen(
                     )
                     add(
                         Material3SettingsItem(
+                            icon = rememberVectorPainter(Icons.Outlined.Newspaper),
+                            title = { Text("Changelog") },
+                            onClick = { showChangelog = true }
+                        )
+                    )
+                    add(
+                        Material3SettingsItem(
                             icon = rememberVectorPainter(Icons.Outlined.Info),
                             title = { Text(stringResource(R.string.settings_about)) },
                             onClick = onAboutClick
@@ -196,6 +205,9 @@ fun SettingsScreen(
                     }
                 }
             )
+            if (showChangelog) {
+                ChangelogSheet(onDismiss = { showChangelog = false })
+            }
             updateRelease?.let { release ->
                     if (checkUpdatesEnabled) {
                         Spacer(modifier = Modifier.height(16.dp))

@@ -4,6 +4,7 @@ import android.content.Context
 import com.google.gson.Gson
 import com.kaeru.app.R
 import com.kaeru.app.data.scraper.LinketrackWebViewScraper
+import com.kaeru.app.tracking.utils.TrackingCarrier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -36,18 +37,7 @@ class TrackingRepository(private val context: Context) {
     private val gson = Gson()
 
     fun isCarrierSupported(code: String): Boolean {
-        val cleanCode = code.trim().uppercase()
-        return when {
-            listOf("MZ", "LJ", "LOG").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            listOf("NN", "LP").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            listOf("ME").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            listOf("AJ").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            listOf("BR", "SPX").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            listOf("TX").any { cleanCode.startsWith(it) } || listOf("TX").any { cleanCode.endsWith(it) } -> true
-            listOf("AD", "AB", "AN").any { cleanCode.startsWith(it) } && cleanCode.length >= 12 -> true
-            cleanCode.all { it.isDigit() } && cleanCode.length >= 10 -> true
-            else -> false
-        }
+        return TrackingCarrier.fromCode(code) != TrackingCarrier.UNKNOWN
     }
     suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto", cpf: String? = null): TrackingResponse? {
         val cleanCode = code.trim().uppercase()
@@ -69,18 +59,17 @@ class TrackingRepository(private val context: Context) {
             context.getString(R.string.carrier_total_express) -> trackViaTotalExpress(cleanCode)
             context.getString(R.string.carrier_jt) -> trackViaJTExpress(cleanCode, cpf)
             else -> {
-                when {
-                    listOf("MZ", "LJ", "LOG").any { cleanCode.startsWith(it) } -> { trackViaLoggi(cleanCode) }
-                    listOf("NN", "LP").any { cleanCode.startsWith(it) } -> { trackCainiaoFree(cleanCode) }
-                    listOf("ME").any { cleanCode.startsWith(it) } -> { trackMelhorRastreioFree(cleanCode) }
-                    listOf("AJ").any { cleanCode.startsWith(it) } -> { trackViaAnjun(cleanCode) }
-                    listOf("BR", "SPX").any { cleanCode.startsWith(it) } -> { trackViaSpx(cleanCode) }
-                    listOf("TX").any { cleanCode.startsWith(it) } || listOf("TX").any { cleanCode.endsWith(it) } -> { trackViaTotalExpress(cleanCode) }
-                    listOf("AD", "AB", "AN").any { cleanCode.startsWith(it) } -> { trackViaLinketrackWebView(cleanCode) }
-                    cleanCode.all { it.isDigit() } -> {
-                        trackViaJTExpress(cleanCode, cpf)
-                    }
-                    else -> { null }
+                val carrier = TrackingCarrier.fromCode(cleanCode)
+                return when (carrier) {
+                    TrackingCarrier.LOGGI -> trackViaLoggi(cleanCode)
+                    TrackingCarrier.CAINIAO -> trackCainiaoFree(cleanCode)
+                    TrackingCarrier.MELHOR_ENVIO -> trackMelhorRastreioFree(cleanCode)
+                    TrackingCarrier.ANJUN -> trackViaAnjun(cleanCode)
+                    TrackingCarrier.SHOPEE -> trackViaSpx(cleanCode)
+                    TrackingCarrier.TOTAL_EXPRESS -> trackViaTotalExpress(cleanCode)
+                    TrackingCarrier.CORREIOS -> trackViaLinketrackWebView(cleanCode)
+                    TrackingCarrier.JT_EXPRESS -> trackViaJTExpress(cleanCode, cpf)
+                    TrackingCarrier.UNKNOWN -> null
                 }
             }
         }

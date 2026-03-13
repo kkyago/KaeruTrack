@@ -108,4 +108,7 @@
     <string name="cpf_necessary_title">CPF Required</string>
     <string name="cpf_incorrect_desc">Data mismatch. Please check if the CPF belongs to the recipient of package: %1$s.</string>
     <string name="cpf_necessary_desc"><![CDATA[J&T Express requires the recipient\'s CPF to release tracking for package: %1$s.]]></string>
+    <string name="updated_just_now">Atualizado agora</string>
+    <string name="updated_one_min_ago">Atualizado há 1 min</string>
+    <string name="updated_mins_ago">Atualiado a $diffMinutes min</string>
 </resources>

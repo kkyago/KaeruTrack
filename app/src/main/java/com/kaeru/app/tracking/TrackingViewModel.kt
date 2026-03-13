@@ -37,6 +37,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.kaeru.app.AppDestinations
 import com.kaeru.app.data.utils.UpdateWorker
+import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.screens.TrackingFilter
 import com.kaeru.app.ui.screens.settings.SYSTEM_DEFAULT
 import java.util.concurrent.TimeUnit
@@ -81,8 +82,7 @@ class TrackingViewModel(
 
     val stats = historyList.map { list ->
         val deliveredCount = list.count { item ->
-            item.lastStatus.contains("Entregue", ignoreCase = true) ||
-                    item.lastStatus.contains("Delivered", ignoreCase = true)
+            item.lastStatus.isDeliveredStatus()
         }
 
         val inTransitCount = list.size - deliveredCount
@@ -201,8 +201,7 @@ class TrackingViewModel(
                 resolvedCpf = cpfToUse
                 currentCpf = cpfToUse
             }
-            val isAlreadyDelivered = savedItem?.lastStatus?.contains("Entregue", ignoreCase = true) == true ||
-                    savedItem?.lastStatus?.contains("Delivered", ignoreCase = true) == true
+            val isAlreadyDelivered = savedItem?.lastStatus?.isDeliveredStatus() ?: false
             if (isAlreadyDelivered) {
                 val cached = TrackingCache.get(cleanCode)
                 if (cached != null) {
@@ -212,9 +211,9 @@ class TrackingViewModel(
                         tracking_code = cleanCode,
                         events = listOf(
                             TrackingEvent(
-                                status = savedItem.lastStatus,
-                                date = savedItem.lastDate.substringBefore(" "),
-                                time = savedItem.lastDate.substringAfter(" "),
+                                status = savedItem?.lastStatus,
+                                date = savedItem?.lastDate?.substringBefore(" ") ?: "",
+                                time = savedItem?.lastDate?.substringAfter(" ") ?: "",
                                 location = "Histórico Local",
                                 subStatus = null
                             )

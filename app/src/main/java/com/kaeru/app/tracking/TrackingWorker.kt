@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.kaeru.app.tracking.database.AppDatabase
+import com.kaeru.app.tracking.utils.isDeliveredStatus
 import kotlinx.coroutines.flow.first
 
 class TrackingWorker(
@@ -32,8 +33,7 @@ class TrackingWorker(
             val encomendasSalvas = dao.getAllTracking().first()
 
             for (encomenda in encomendasSalvas) {
-                val isAlreadyDelivered = encomenda.lastStatus.contains("Entregue", ignoreCase = true) ||
-                        encomenda.lastStatus.contains("Delivered", ignoreCase = true)
+                val isAlreadyDelivered = encomenda.lastStatus.isDeliveredStatus()
                 if (isAlreadyDelivered) continue
 
                 val response = repository.trackPackage(encomenda.code, forceRefresh = true)

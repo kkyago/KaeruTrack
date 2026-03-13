@@ -40,8 +40,8 @@ class NotificationHelper(private val context: Context) {
     }
     fun showNotification(trackingCode: String, newStatus: String) {
         val notification = NotificationCompat.Builder(context, TRACKING_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
-            .setContentTitle("Atualização: $trackingCode")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Atualização do pacote: $trackingCode")
             .setContentText(newStatus)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -61,9 +61,9 @@ class NotificationHelper(private val context: Context) {
         )
 
         val notification = NotificationCompat.Builder(context, APP_UPDATE_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Atualização disponível!")
-            .setContentText("A versão $version do Kaeru já está disponível para download.")
+            .setContentText("$version")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

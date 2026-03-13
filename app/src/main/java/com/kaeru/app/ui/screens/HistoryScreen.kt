@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.kaeru.app.ui.components.AnimatedFilterChip
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.ColorFilter
+import com.kaeru.app.tracking.utils.isDeliveredStatus
 
 @Composable
 fun HistoryScreen(
@@ -58,12 +59,10 @@ fun HistoryScreen(
     val filteredHistory = remember(history, currentFilter) {
         when (currentFilter) {
             TrackingFilter.IN_TRANSIT -> history.filter {
-                !it.lastStatus.contains("entregue", ignoreCase = true) &&
-                        !it.lastStatus.contains("delivered", ignoreCase = true)
+                !it.lastStatus.isDeliveredStatus()
             }
             TrackingFilter.DELIVERED -> history.filter {
-                it.lastStatus.contains("entregue", ignoreCase = true) ||
-                        it.lastStatus.contains("delivered", ignoreCase = true)
+                it.lastStatus.isDeliveredStatus()
             }
             TrackingFilter.ALL -> history
         }
@@ -224,7 +223,7 @@ fun HistoryCardNew(
     val cardColor = MaterialTheme.colorScheme.surfaceContainerLow
     val textColor = MaterialTheme.colorScheme.onSurface
     val subTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val isDelivered = item.lastStatus.contains("entregue", ignoreCase = true) || item.lastStatus.contains("delivered", ignoreCase = true)
+    val isDelivered = item.lastStatus.isDeliveredStatus()
     val daysCount = remember(item.savedAt) {
         val diff = System.currentTimeMillis() - item.savedAt
         TimeUnit.MILLISECONDS.toDays(diff).coerceAtLeast(0)

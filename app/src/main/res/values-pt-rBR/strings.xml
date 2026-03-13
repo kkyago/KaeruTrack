@@ -106,4 +106,7 @@
     <string name="cpf_necessary_title">CPF Necessário</string>
     <string name="cpf_incorrect_desc">Os dados não batem. Verifique se o CPF pertence ao destinatário da encomenda: %1$s.</string>
     <string name="cpf_necessary_desc"><![CDATA[A J&T Express exige o CPF do destinatário para liberar o rastreio da encomenda: %1$s.]]></string>
+    <string name="updated_just_now">Atualizado agora</string>
+    <string name="updated_one_min_ago">Atualizado há 1 min</string>
+    <string name="updated_mins_ago">Atualiado a $diffMinutes min</string>
 </resources>
