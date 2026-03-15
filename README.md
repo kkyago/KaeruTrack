@@ -46,7 +46,22 @@ O **KaeruTrack** é um projeto de código aberto desenvolvido de forma independe
 - Rastreia encomendas de várias [transportadoras](#transportadoras) diferentes
 - Material 3
 - Customização profunda
+- Backup de dados
+- Notificações de rastreio
 - etc.
+
+<div align="center">
+<h1>Transportadoras</h1>
+</div>
+
+- Correios
+- Loggi
+- Shopee Xpress
+- Cainiao
+- Anjun Express
+- Melhor Envio
+- Total Express
+- J&T Express
 
 <div align="center">
 <h1>Créditos</h1>
