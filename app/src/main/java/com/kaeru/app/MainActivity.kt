@@ -176,6 +176,17 @@ object Routes {
 @Composable
 fun KaeruNavGraph(viewModel: TrackingViewModel, updateRelease: GithubRelease?) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
+    LaunchedEffect(Unit) {
+        activity?.intent?.let { intent ->
+            val trackingCode = intent.getStringExtra("tracking_code")
+            if (!trackingCode.isNullOrBlank()) {
+                navController.navigate("result_screen/$trackingCode?carrier=Auto")
+                intent.removeExtra("tracking_code")
+            }
+        }
+    }
 
     NavHost(
         navController = navController,

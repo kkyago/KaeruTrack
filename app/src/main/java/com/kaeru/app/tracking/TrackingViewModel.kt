@@ -30,11 +30,13 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.kaeru.app.AppDestinations
 import com.kaeru.app.data.utils.UpdateWorker
 import com.kaeru.app.tracking.utils.isDeliveredStatus
@@ -258,6 +260,11 @@ class TrackingViewModel(
                 15, TimeUnit.MINUTES
             )
                 .setConstraints(constraints)
+                .setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    WorkRequest.MIN_BACKOFF_MILLIS,
+                    TimeUnit.MILLISECONDS
+                )
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
