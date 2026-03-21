@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -44,6 +45,7 @@ import com.kaeru.app.ui.screens.settings.*
 import com.kaeru.app.ui.theme.KaeruTrackTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.content.edit
+import com.kaeru.app.ui.components.BatteryOptimizationDialog
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -118,6 +120,7 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val sharedPreferences = remember { context.getSharedPreferences("kaeru_prefs", Context.MODE_PRIVATE) }
             var showChangelog by rememberSaveable { mutableStateOf(false) }
+            var showBatteryDialog by rememberSaveable { mutableStateOf(false) }
 
             LaunchedEffect(Unit) {
                 if (checkUpdatesEnabled) {
@@ -130,8 +133,14 @@ class MainActivity : ComponentActivity() {
                 if (lastSeenVersion != currentVersion) {
                     showChangelog = true
                 }
+                val hideBatteryDialog = sharedPreferences.getBoolean("hide_battery_dialog", false)
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                val isIgnoringOptimizations = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+                if (!hideBatteryDialog && !isIgnoringOptimizations) {
+                    showBatteryDialog = true
+                }
                 sharedPreferences.edit().putString("last_seen_version", currentVersion).apply()
-            } //checagem de att ao abrir (essencial pra badge e changelogs)
+            } // checagem de att/otimização de bateria ao abrir (essencial pra badge, changelogs e notificações)
 
             KaeruTrackTheme(
                 darkTheme = useDarkTheme,
@@ -146,6 +155,15 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 } else {
+                    if (showBatteryDialog) {
+                        BatteryOptimizationDialog(
+                            onDismiss = { showBatteryDialog = false },
+                            onNeverShowAgain = {
+                                sharedPreferences.edit().putBoolean("hide_battery_dialog", true).apply()
+                                showBatteryDialog = false
+                            }
+                        )
+                    }
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
@@ -176,6 +194,17 @@ object Routes {
 @Composable
 fun KaeruNavGraph(viewModel: TrackingViewModel, updateRelease: GithubRelease?) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val activity = context as? ComponentActivity
+    LaunchedEffect(Unit) {
+        activity?.intent?.let { intent ->
+            val trackingCode = intent.getStringExtra("tracking_code")
+            if (!trackingCode.isNullOrBlank()) {
+                navController.navigate("result_screen/$trackingCode?carrier=Auto")
+                intent.removeExtra("tracking_code")
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
