@@ -110,5 +110,7 @@
     <string name="cpf_necessary_desc"><![CDATA[J&T Express requires the recipient\'s CPF to release tracking for package: %1$s.]]></string>
     <string name="updated_just_now">Atualizado agora</string>
     <string name="updated_one_min_ago">Atualizado há 1 min</string>
-    <string name="updated_mins_ago">Atualiado a $diffMinutes min</string>
+    <string name="updated_mins_ago">Atualizado a $diffMinutes min</string>
+    <string name="no_updates_found">No updates found.</string>
+    <string name="view_on_github">View on GitHub</string>
 </resources>

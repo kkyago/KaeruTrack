@@ -106,14 +106,18 @@ fun ChangelogSheet(onDismiss: () -> Unit) {
 
                 if (isLoading) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
                     }
                 } else if (releases.isEmpty()) {
                     item {
-                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                            Text(text = "Nenhuma atualização encontrada.")
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp), contentAlignment = Alignment.Center) {
+                            Text(text = stringResource(R.string.no_updates_found))
                         }
                     }
                 } else {
@@ -135,7 +139,7 @@ fun ChangelogSheet(onDismiss: () -> Unit) {
                 ExtendedFloatingActionButton(
                     onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack/releases/latest") },
                     icon = { Icon(painterResource(R.drawable.github), contentDescription = null, modifier = Modifier.size(24.dp)) },
-                    text = { Text("Ver no GitHub") },
+                    text = { Text(stringResource(R.string.view_on_github)) },
                     containerColor = MaterialTheme.colorScheme.onPrimary,
                     contentColor = MaterialTheme.colorScheme.primary
                 )
@@ -199,7 +203,9 @@ fun KaeruMarkdownText(text: String) {
             if (trimmedLine.startsWith("#")) {
                 val level = trimmedLine.takeWhile { it == '#' }.length
                 val headerText = trimmedLine.substring(level).trim()
-                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
                     Text(
                         text = headerText,
                         style = when (level) {
