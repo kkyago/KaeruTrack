@@ -133,7 +133,7 @@ fun ChangelogSheet(onDismiss: () -> Unit) {
                     .padding(16.dp)
             ) {
                 ExtendedFloatingActionButton(
-                    onClick = { uriHandler.openUri("https://github.com/SEU_USER/kaeru/releases") },
+                    onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack/releases/latest") },
                     icon = { Icon(painterResource(R.drawable.github), contentDescription = null, modifier = Modifier.size(24.dp)) },
                     text = { Text("Ver no GitHub") },
                     containerColor = MaterialTheme.colorScheme.onPrimary,
