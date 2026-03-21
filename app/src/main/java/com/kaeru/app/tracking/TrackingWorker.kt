@@ -35,7 +35,7 @@ class TrackingWorker(
             for (encomenda in encomendasSalvas) {
                 if (encomenda.lastStatus?.isDeliveredStatus() == true) continue
                 try {
-                    val response = repository.trackPackage(encomenda.code, forceRefresh = true)
+                    val response = repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
                     val eventoMaisRecente = response?.events?.firstOrNull()
                     val statusNovo = eventoMaisRecente?.status
 
