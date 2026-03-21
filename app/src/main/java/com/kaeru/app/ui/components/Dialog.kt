@@ -383,9 +383,9 @@ fun BatteryOptimizationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Desative a otimização de bateria") },
+        title = { Text(stringResource(R.string.disable_battery_optimization)) },
         text = {
-            Text("A otimização de bateria está ativa e restringindo as notificações de entrega. Você gostaria de desativar?")
+            Text(stringResource(R.string.disable_battery_optimization_description))
         },
         confirmButton = {
             Button(onClick = {
@@ -395,12 +395,12 @@ fun BatteryOptimizationDialog(
                 context.startActivity(intent)
                 onDismiss()
             }) {
-                Text("Desativar")
+                Text(stringResource(R.string.disable))
             }
         },
         dismissButton = {
             TextButton(onClick = onNeverShowAgain) {
-                Text("Cancelar")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

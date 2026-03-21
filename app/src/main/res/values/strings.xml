@@ -111,4 +111,7 @@
     <string name="updated_just_now">Atualizado agora</string>
     <string name="updated_one_min_ago">Atualizado há 1 min</string>
     <string name="updated_mins_ago">Atualiado a $diffMinutes min</string>
+    <string name="disable_battery_optimization">Disable battery optimization</string>
+    <string name="disable_battery_optimization_description">Battery optimization is active and restricting delivery notifications. Would you like to deactivate?</string>
+    <string name="disable">Disable</string>
 </resources>
