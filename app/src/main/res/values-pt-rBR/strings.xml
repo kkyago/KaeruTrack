@@ -112,4 +112,6 @@
     <string name="disable_battery_optimization">Desative a otimização de bateria</string>
     <string name="disable_battery_optimization_description">A otimização de bateria está ativa e restringindo as notificações de entrega. Você gostaria de desativar?</string>
     <string name="disable">Desativar</string>
+    <string name="view_on_github">Ver no github</string>
+    <string name="no_updates_found">Nenhuma atualização encontrada</string>
 </resources>

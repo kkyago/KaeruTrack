@@ -114,4 +114,6 @@
     <string name="disable_battery_optimization">Disable battery optimization</string>
     <string name="disable_battery_optimization_description">Battery optimization is active and restricting delivery notifications. Would you like to deactivate?</string>
     <string name="disable">Disable</string>
+    <string name="view_on_github">View on github</string>
+    <string name="no_updates_found">No updates found</string>
 </resources>
