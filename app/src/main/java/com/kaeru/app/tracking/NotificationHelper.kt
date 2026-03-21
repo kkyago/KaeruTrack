@@ -10,6 +10,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.kaeru.app.R
 import androidx.core.net.toUri
+import com.kaeru.app.MainActivity
 
 class NotificationHelper(private val context: Context) {
     private val TRACKING_CHANNEL_ID = "kaerutrack_updates"
@@ -38,13 +39,24 @@ class NotificationHelper(private val context: Context) {
             notificationManager.createNotificationChannel(channel)
         }
     }
-    fun showNotification(trackingCode: String, newStatus: String) {
+    fun showNotification(trackingName: String, trackingCode: String, newStatus: String) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra("tracking_code", trackingCode)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            trackingCode.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val notification = NotificationCompat.Builder(context, TRACKING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Atualização do pacote: $trackingCode")
+            .setContentTitle(trackingName)
             .setContentText(newStatus)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
         notificationManager.notify(trackingCode.hashCode(), notification)
     }
