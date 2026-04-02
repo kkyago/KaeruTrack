@@ -54,6 +54,7 @@ android {
 }
 
 dependencies {
+    implementation("io.github.koalaplot:koalaplot-core:0.11.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
     implementation("com.kizitonwose.calendar:compose:2.10.0")
