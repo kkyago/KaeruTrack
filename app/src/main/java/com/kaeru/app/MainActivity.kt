@@ -329,6 +329,40 @@ fun KaeruTabsScreen(
     val checkUpdatesEnabled by viewModel.checkUpdatesOnStart.collectAsState()
     val isSlimNav by viewModel.isSlimNav.collectAsState()
     val bottomBarHeight = if (isSlimNav) 80.dp else 96.dp
+    val userAvatar by viewModel.userAvatar.collectAsState(initial = null)
+    val userName by viewModel.userName.collectAsState()
+    val userBio by viewModel.userBio.collectAsState()
+    val historyList by viewModel.historyList.collectAsState()
+    val defaultFilter by viewModel.defaultHistoryFilter.collectAsState()
+    var currentFilter by rememberSaveable(defaultFilter) { mutableStateOf(defaultFilter) }
+
+    val filteredCount = remember(historyList, currentFilter) {
+        when (currentFilter) {
+            TrackingFilter.IN_TRANSIT -> historyList.count { !it.lastStatus.isDeliveredStatus() }
+            TrackingFilter.DELIVERED -> historyList.count { it.lastStatus.isDeliveredStatus() }
+            TrackingFilter.ALL -> historyList.size
+        }
+    }
+    val name by viewModel.userName.collectAsState()
+    val bio by viewModel.userBio.collectAsState()
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    if (showEditDialog) {
+        EditProfileDialog(
+            currentName = name,
+            currentBio = bio,
+            onDismiss = { showEditDialog = false },
+            onSave = { newName, newBio ->
+                viewModel.updateProfile(newName, newBio)
+                showEditDialog = false
+            }
+        )
+    }
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { viewModel.updateAvatar(it.toString()) }
+    }
 
     Scaffold(
         bottomBar = {
@@ -397,6 +431,36 @@ fun KaeruTabsScreen(
                 }
             }
         }
+    }
+    if (showProfileDialog) {
+        ProfileDialog(
+            userName = userName,
+            userBio = userBio,
+            userAvatar = userAvatar,
+            onDismiss = { showProfileDialog = false },
+            onSettingsClick = {
+                showProfileDialog = false
+            },
+            onMakeBackup = {
+                showProfileDialog = false
+                // Lógica para chamar o backup (ou navegar pra tela de backup)
+                // Ex: navController.navigate(Routes.BACKUP)
+            },
+            onRestoreBackup = {
+                showProfileDialog = false
+                // Lógica para restaurar
+            },
+            onViewHistory = {
+                showProfileDialog = false
+                // Lógica para ver histórico
+            },
+            onPhotoClick = {
+                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onEditProfileClick = {
+                showEditDialog = true
+            }
+        )
     }
 }
 
