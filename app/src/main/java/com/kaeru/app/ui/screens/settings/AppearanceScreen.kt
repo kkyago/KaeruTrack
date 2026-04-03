@@ -107,7 +107,7 @@ fun AppearanceScreen(
                                 when(currentTab) {
                                     AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
                                     AppDestinations.HISTORY -> stringResource(R.string.history_tab_label)
-                                    AppDestinations.PROFILE -> stringResource(R.string.profile_tab_label)
+                                    AppDestinations.CHARTS -> stringResource(R.string.home_stats)
                                 }
                             ) },
                         icon = painterResource(R.drawable.ic_nav_corner),
@@ -162,7 +162,7 @@ fun AppearanceScreen(
                         when (it) {
                             AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
                             AppDestinations.HISTORY -> stringResource(R.string.history_tab_label)
-                            AppDestinations.PROFILE -> stringResource(R.string.profile_tab_label)
+                            AppDestinations.CHARTS -> stringResource(R.string.home_stats)
                         }
                     }
                 )

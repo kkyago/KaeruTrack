@@ -387,16 +387,42 @@ fun KaeruTabsScreen(
                             onNavigateToResult = onNavigateToResult
                         )
                     }
-                    AppDestinations.PROFILE -> {
-                        ProfileScreen(
-                            viewModel = viewModel,
-                            updateRelease = updateRelease,
-                            onSettingsClick = onNavigateToSettings,
-                        )
+                    AppDestinations.CHARTS -> {
+                        StatisticsScreen(viewModel = viewModel)
                     }
                 }
             }
         }
+    }
+    if (showProfileDialog) {
+        ProfileDialog(
+            userName = userName,
+            userBio = userBio,
+            userAvatar = userAvatar,
+            onDismiss = { showProfileDialog = false },
+            onSettingsClick = {
+                showProfileDialog = false
+            },
+            onMakeBackup = {
+                showProfileDialog = false
+                // Lógica para chamar o backup (ou navegar pra tela de backup)
+                // Ex: navController.navigate(Routes.BACKUP)
+            },
+            onRestoreBackup = {
+                showProfileDialog = false
+                // Lógica para restaurar
+            },
+            onViewHistory = {
+                showProfileDialog = false
+                // Lógica para ver histórico
+            },
+            onPhotoClick = {
+                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onEditProfileClick = {
+                showEditDialog = true
+            }
+        )
     }
 }
 
