@@ -39,10 +39,20 @@ import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import com.kaeru.app.AppDestinations
 import com.kaeru.app.data.utils.UpdateWorker
+import com.kaeru.app.tracking.utils.TrackingCarrier
 import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.screens.TrackingFilter
 import com.kaeru.app.ui.screens.settings.SYSTEM_DEFAULT
 import java.util.concurrent.TimeUnit
+import java.time.Instant
+import java.time.ZoneId
+import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
+import java.time.DayOfWeek
+import kotlinx.coroutines.flow.*
+import com.kaeru.app.ui.screens.KaeruStatPeriod
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class TrackingViewModel(
     application: Application,
@@ -421,4 +431,129 @@ class TrackingViewModel(
         }
         AppCompatDelegate.setApplicationLocales(appLocale)
     }
+
+    private val _selectedStatPeriod = MutableStateFlow(KaeruStatPeriod.YEAR)
+    val selectedStatPeriod: StateFlow<KaeruStatPeriod> = _selectedStatPeriod.asStateFlow()
+
+    fun setStatPeriod(period: KaeruStatPeriod) {
+        _selectedStatPeriod.value = period
+    }
+
+    val chartData: StateFlow<Pair<List<String>, List<Int>>> = combine(
+        dao.getAllTrackingDates(),
+        _selectedStatPeriod
+    ) { datesLong, period ->
+        val dates = datesLong.map {
+            Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+        }
+        val today = LocalDate.now()
+
+        when (period) {
+            KaeruStatPeriod.WEEK -> {
+                val startOfWeek = today.with(DayOfWeek.MONDAY)
+                val labels = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+                val counts = MutableList(7) { 0 }
+
+                dates.filter { !it.isBefore(startOfWeek) && !it.isAfter(startOfWeek.plusDays(6)) }
+                    .forEach { date ->
+                        val dayIndex = date.dayOfWeek.value - 1
+                        counts[dayIndex]++
+                    }
+                Pair(labels, counts)
+            }
+
+            KaeruStatPeriod.MONTH -> {
+                val labels = listOf("Sem 1", "Sem 2", "Sem 3", "Sem 4")
+                val counts = MutableList(4) { 0 }
+
+                dates.filter { it.year == today.year && it.month == today.month }
+                    .forEach { date ->
+                        val weekIndex = when (date.dayOfMonth) {
+                            in 1..7 -> 0
+                            in 8..14 -> 1
+                            in 15..21 -> 2
+                            else -> 3
+                        }
+                        counts[weekIndex]++
+                    }
+                Pair(labels, counts)
+            }
+
+            KaeruStatPeriod.YEAR -> {
+                val labels = listOf("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+                val counts = MutableList(12) { 0 }
+
+                dates.filter { it.year == today.year }
+                    .forEach { date ->
+                        val monthIndex = date.monthValue - 1
+                        counts[monthIndex]++
+                    }
+                Pair(labels, counts)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = Pair(emptyList(), emptyList())
+    )
+
+    val carrierEfficiency: StateFlow<List<CarrierAvg>> = dao.getAllTracking()
+        .map { items ->
+            items
+                .filter { it.lastStatus.isDeliveredStatus() }
+                .groupBy { TrackingCarrier.fromCode(it.code) }
+                .filterKeys { it != TrackingCarrier.UNKNOWN }
+                .mapNotNull { (carrier, packageList) ->
+                    val validPackages = packageList.filter {
+                        !it.firstDate.isNullOrBlank() && it.lastDate.isNotBlank()
+                    }
+                    if (validPackages.isEmpty()) return@mapNotNull null
+                    val totalDays = validPackages.sumOf { pkg ->
+                        val startMillis = parseDateStringToMillis(pkg.firstDate!!)
+                        val endMillis = parseDateStringToMillis(pkg.lastDate)
+                        if (startMillis > 0L && endMillis > 0L) {
+                            TimeUnit.MILLISECONDS.toDays(endMillis - startMillis).coerceAtLeast(1L)
+                        } else {
+                            1L
+                        }
+                    }
+                    val avg = (totalDays / validPackages.size).toInt().coerceAtLeast(1)
+
+                    CarrierAvg(carrier, avg)
+                }
+                .sortedBy { it.avgDays }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 }
+
+private fun parseDateStringToMillis(dateStr: String): Long {
+    if (dateStr.isBlank()) return 0L
+    val cleanDate = dateStr.trim()
+    val possibleFormats = listOf(
+        "dd/MM/yyyy HH:mm:ss",
+        "dd/MM/yyyy HH:mm",
+        "dd/MM/yyyy",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+
+    for (format in possibleFormats) {
+        try {
+            val sdf = SimpleDateFormat(format, Locale.getDefault())
+            val parsedDate = sdf.parse(cleanDate)
+            if (parsedDate != null) {
+                return parsedDate.time
+            }
+        } catch (e: Exception) {
+            continue
+        }
+    }
+
+    return 0L
+}
+
+data class CarrierAvg(val carrier: TrackingCarrier, val avgDays: Int)

@@ -7,27 +7,37 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -45,7 +55,11 @@ import com.kaeru.app.ui.screens.settings.*
 import com.kaeru.app.ui.theme.KaeruTrackTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.content.edit
+import coil.compose.AsyncImage
+import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.components.BatteryOptimizationDialog
+import com.kaeru.app.ui.components.EditProfileDialog
+import com.kaeru.app.ui.components.ProfileDialog
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -329,8 +343,51 @@ fun KaeruTabsScreen(
     val checkUpdatesEnabled by viewModel.checkUpdatesOnStart.collectAsState()
     val isSlimNav by viewModel.isSlimNav.collectAsState()
     val bottomBarHeight = if (isSlimNav) 80.dp else 96.dp
+    val userAvatar by viewModel.userAvatar.collectAsState(initial = null)
+    val userName by viewModel.userName.collectAsState()
+    val userBio by viewModel.userBio.collectAsState()
+    val historyList by viewModel.historyList.collectAsState()
+    val defaultFilter by viewModel.defaultHistoryFilter.collectAsState()
+    var currentFilter by rememberSaveable(defaultFilter) { mutableStateOf(defaultFilter) }
+
+    val filteredCount = remember(historyList, currentFilter) {
+        when (currentFilter) {
+            TrackingFilter.IN_TRANSIT -> historyList.count { !it.lastStatus.isDeliveredStatus() }
+            TrackingFilter.DELIVERED -> historyList.count { it.lastStatus.isDeliveredStatus() }
+            TrackingFilter.ALL -> historyList.size
+        }
+    }
+    val name by viewModel.userName.collectAsState()
+    val bio by viewModel.userBio.collectAsState()
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    if (showEditDialog) {
+        EditProfileDialog(
+            currentName = name,
+            currentBio = bio,
+            onDismiss = { showEditDialog = false },
+            onSave = { newName, newBio ->
+                viewModel.updateProfile(newName, newBio)
+                showEditDialog = false
+            }
+        )
+    }
+    val photoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { viewModel.updateAvatar(it.toString()) }
+    }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                currentTab = currentTab,
+                packageCount = filteredCount,
+                userAvatar = userAvatar,
+                onAvatarClick = { showProfileDialog = true },
+                onSettingsClick = onNavigateToSettings
+            )
+        },
         bottomBar = {
             NavigationBar(modifier = Modifier.height(bottomBarHeight)) {
                 AppDestinations.entries.forEach { destination ->
@@ -340,14 +397,14 @@ fun KaeruTabsScreen(
                         label = if (isSlimNav) null else { { Text(stringResource(destination.label)) }},
                         alwaysShowLabel = !isSlimNav,
                         icon = {
-                            BadgedBox(
-                                badge = {
-                                        if (destination == AppDestinations.PROFILE && updateRelease != null && checkUpdatesEnabled) {
-                                            Badge(containerColor = MaterialTheme.colorScheme.error)
-                                        }
+                            val icon = destination.icon
+                            when (icon) {
+                                is ImageVector -> {
+                                    Icon(imageVector = icon, contentDescription = null)
                                 }
-                            ) {
-                                Icon(destination.icon, contentDescription = null)
+                                is Int -> {
+                                    Icon(painter = painterResource(id = icon), contentDescription = null)
+                                }
                             }
                         }
                     )
@@ -379,32 +436,154 @@ fun KaeruTabsScreen(
                     AppDestinations.HISTORY -> {
                         HistoryScreen(
                             viewModel = viewModel,
+                            currentFilter = currentFilter,
+                            onFilterChange = { newFilter -> currentFilter = newFilter },
                             onNavigateToResult = { code -> onNavigateToResult(code, "Auto") }
                         )
                     }
                     AppDestinations.SEARCH -> {
                         SearchScreen(
-                            onNavigateToResult = onNavigateToResult
-                        )
+                            onNavigateToResult = onNavigateToResult,
+
+                            )
                     }
-                    AppDestinations.PROFILE -> {
-                        ProfileScreen(
-                            viewModel = viewModel,
-                            updateRelease = updateRelease,
-                            onSettingsClick = onNavigateToSettings,
-                        )
+                    AppDestinations.CHARTS -> {
+                        StatisticsScreen(viewModel = viewModel)
                     }
                 }
             }
         }
     }
+    if (showProfileDialog) {
+        ProfileDialog(
+            userName = userName,
+            userBio = userBio,
+            userAvatar = userAvatar,
+            onDismiss = { showProfileDialog = false },
+            onSettingsClick = {
+                showProfileDialog = false
+            },
+            onMakeBackup = {
+                showProfileDialog = false
+                // Lógica para chamar o backup (ou navegar pra tela de backup)
+                // Ex: navController.navigate(Routes.BACKUP)
+            },
+            onRestoreBackup = {
+                showProfileDialog = false
+                // Lógica para restaurar
+            },
+            onViewHistory = {
+                showProfileDialog = false
+                // Lógica para ver histórico
+            },
+            onPhotoClick = {
+                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onEditProfileClick = {
+                showEditDialog = true
+            }
+        )
+    }
 }
 
 enum class AppDestinations(
     val label: Int,
-    val icon: ImageVector,
+    val icon: Any,
 ) {
     HISTORY(R.string.home_history, Icons.Outlined.History),
     SEARCH(R.string.home_search, Icons.Default.Search),
-    PROFILE(R.string.home_profile, Icons.Default.Person),
+    CHARTS(R.string.home_stats, R.drawable.ic_charts),
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TopAppBar(
+    currentTab: AppDestinations,
+    packageCount: Int,
+    userAvatar: String?,
+    onAvatarClick: () -> Unit,
+    onSettingsClick: () -> Unit
+) {
+    val title = when (currentTab) {
+        AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
+        AppDestinations.HISTORY -> stringResource(R.string.packages)
+        AppDestinations.CHARTS -> "Estatísticas"
+        else -> "Kaeru"
+    }
+
+    TopAppBar(
+        title = {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
+            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        actions = {
+            IconButton(onClick = onSettingsClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (currentTab == AppDestinations.HISTORY) {
+                if (packageCount > 0) {
+                    IconButton(
+                        onClick = onAvatarClick,
+                    ) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .size(26.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text(
+                                    if (packageCount > 99) "99+" else packageCount.toString(),
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = if (packageCount > 99) 9.sp else 12.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                IconButton(
+                    onClick = onAvatarClick,
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = CircleShape,
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        if (!userAvatar.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = userAvatar,
+                                contentDescription = "Perfil",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Perfil",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(6.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
 }

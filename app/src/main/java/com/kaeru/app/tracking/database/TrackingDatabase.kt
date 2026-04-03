@@ -39,6 +39,8 @@ data class TrackingEntity(
 interface TrackingDao {
     @Query("SELECT * FROM tracking_history ORDER BY savedAt DESC")
     fun getAllTracking(): Flow<List<TrackingEntity>>
+    @Query("SELECT savedAt FROM tracking_history")
+    fun getAllTrackingDates(): Flow<List<Long>>
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTracking(tracking: TrackingEntity)
     @Query("DELETE FROM tracking_history WHERE code = :code")

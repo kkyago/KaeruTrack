@@ -52,6 +52,7 @@ fun KaeruLoading() {
 @Composable
 fun Material3SettingsGroup(
     title: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
     items: List<Material3SettingsItem>
 ) {
     Column(
@@ -83,7 +84,7 @@ fun Material3SettingsGroup(
                         .animateContentSize(),
                     shape = shape,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+                        containerColor = containerColor
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {

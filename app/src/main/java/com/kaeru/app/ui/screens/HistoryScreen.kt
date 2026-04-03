@@ -33,7 +33,6 @@ import androidx.compose.ui.text.style.TextAlign.Companion.Center
 import com.kaeru.app.tracking.utils.DateUtils
 import com.kaeru.app.ui.components.TransitCalendarDialog
 import kotlin.math.abs
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -46,16 +45,14 @@ import com.kaeru.app.tracking.utils.isDeliveredStatus
 @Composable
 fun HistoryScreen(
     viewModel: TrackingViewModel,
+    currentFilter: TrackingFilter,
+    onFilterChange: (TrackingFilter) -> Unit,
     onNavigateToResult: (String) -> Unit
 ) {
     val history by viewModel.historyList.collectAsState()
     val backgroundColor = MaterialTheme.colorScheme.background
     val primaryColor = MaterialTheme.colorScheme.primary
     val onBackground = MaterialTheme.colorScheme.onBackground
-    val defaultFilter by viewModel.defaultHistoryFilter.collectAsState()
-    var currentFilter by rememberSaveable(defaultFilter) {
-        mutableStateOf(defaultFilter)
-    }
     val filteredHistory = remember(history, currentFilter) {
         when (currentFilter) {
             TrackingFilter.IN_TRANSIT -> history.filter {
@@ -85,42 +82,7 @@ fun HistoryScreen(
         ) {
             item {
                 Column {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.packages),
-                            color = onBackground,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (filteredHistory.isNotEmpty()) {
-                            Surface(
-                                color = primaryColor,
-                                shape = CircleShape,
-                                modifier = Modifier
-                                    .height(32.dp)
-                                    .widthIn(min = 32.dp)
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                ) {
-                                    Text(
-                                        text = filteredHistory.size.toString(),
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -129,21 +91,21 @@ fun HistoryScreen(
                     ) {
                         AnimatedFilterChip(
                             selected = currentFilter == TrackingFilter.IN_TRANSIT,
-                            onClick = { currentFilter = TrackingFilter.IN_TRANSIT },
+                            onClick = { onFilterChange(TrackingFilter.IN_TRANSIT) },
                             label = stringResource(R.string.in_transit_label),
                             icon = Icons.Outlined.LocalShipping
                         )
 
                         AnimatedFilterChip(
                             selected = currentFilter == TrackingFilter.DELIVERED,
-                            onClick = { currentFilter = TrackingFilter.DELIVERED },
+                            onClick = { onFilterChange(TrackingFilter.DELIVERED) },
                             label = stringResource(R.string.delivered_label),
                             icon = Icons.Default.CheckCircle
                         )
 
                         AnimatedFilterChip(
                             selected = currentFilter == TrackingFilter.ALL,
-                            onClick = { currentFilter = TrackingFilter.ALL },
+                            onClick = { onFilterChange(TrackingFilter.ALL) },
                             label = stringResource(R.string.all_label),
                             icon = Icons.Default.CheckCircle
                         )
