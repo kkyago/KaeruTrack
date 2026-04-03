@@ -10,7 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
+
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -56,6 +56,11 @@ import com.kaeru.app.ui.theme.KaeruTrackTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.content.edit
 import coil.compose.AsyncImage
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.api.services.drive.DriveScopes
+import com.kaeru.app.data.helper.GoogleDriveHelper
 import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.components.BatteryOptimizationDialog
 import com.kaeru.app.ui.components.EditProfileDialog
@@ -103,6 +108,7 @@ class MainActivity : ComponentActivity() {
         val db = AppDatabase.getDatabase(applicationContext)
         val dao = db.trackingDao()
         val repository = TrackingRepository(applicationContext)
+        val backupLogDao = db.backupLogDao()
         val viewModelFactory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(TrackingViewModel::class.java)) {
@@ -110,7 +116,8 @@ class MainActivity : ComponentActivity() {
                     return TrackingViewModel(
                         application = application,
                         repository = repository,
-                        dao = dao
+                        dao = dao,
+                        backupLogDao = backupLogDao
                     ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
@@ -127,7 +134,6 @@ class MainActivity : ComponentActivity() {
                 KaeruThemeMode.DARK -> true
                 KaeruThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
-            val trackingViewModel: TrackingViewModel = viewModel()
             var updateRelease by remember { mutableStateOf<GithubRelease?>(null) }
             val updateManager = remember { UpdateManager() }
             val checkUpdatesEnabled by trackingViewModel.checkUpdatesOnStart.collectAsState()
@@ -328,161 +334,6 @@ fun KaeruNavGraph(viewModel: TrackingViewModel, updateRelease: GithubRelease?) {
                 onBack = { navController.popBackStack() }
             )
         }
-    }
-}
-
-@Composable
-fun KaeruTabsScreen(
-    viewModel: TrackingViewModel,
-    updateRelease: GithubRelease?,
-    onNavigateToResult: (String, String) -> Unit,
-    onNavigateToSettings: () -> Unit
-) {
-    val defaultTab by viewModel.defaultOpenTab.collectAsState()
-    var currentTab by rememberSaveable(defaultTab) { mutableStateOf(defaultTab) }
-    val checkUpdatesEnabled by viewModel.checkUpdatesOnStart.collectAsState()
-    val isSlimNav by viewModel.isSlimNav.collectAsState()
-    val bottomBarHeight = if (isSlimNav) 80.dp else 96.dp
-    val userAvatar by viewModel.userAvatar.collectAsState(initial = null)
-    val userName by viewModel.userName.collectAsState()
-    val userBio by viewModel.userBio.collectAsState()
-    val historyList by viewModel.historyList.collectAsState()
-    val defaultFilter by viewModel.defaultHistoryFilter.collectAsState()
-    var currentFilter by rememberSaveable(defaultFilter) { mutableStateOf(defaultFilter) }
-
-    val filteredCount = remember(historyList, currentFilter) {
-        when (currentFilter) {
-            TrackingFilter.IN_TRANSIT -> historyList.count { !it.lastStatus.isDeliveredStatus() }
-            TrackingFilter.DELIVERED -> historyList.count { it.lastStatus.isDeliveredStatus() }
-            TrackingFilter.ALL -> historyList.size
-        }
-    }
-    val name by viewModel.userName.collectAsState()
-    val bio by viewModel.userBio.collectAsState()
-    var showProfileDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    if (showEditDialog) {
-        EditProfileDialog(
-            currentName = name,
-            currentBio = bio,
-            onDismiss = { showEditDialog = false },
-            onSave = { newName, newBio ->
-                viewModel.updateProfile(newName, newBio)
-                showEditDialog = false
-            }
-        )
-    }
-    val photoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        uri?.let { viewModel.updateAvatar(it.toString()) }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                currentTab = currentTab,
-                packageCount = filteredCount,
-                userAvatar = userAvatar,
-                onAvatarClick = { showProfileDialog = true },
-                onSettingsClick = onNavigateToSettings
-            )
-        },
-        bottomBar = {
-            NavigationBar(modifier = Modifier.height(bottomBarHeight)) {
-                AppDestinations.entries.forEach { destination ->
-                    NavigationBarItem(
-                        selected = destination == currentTab,
-                        onClick = { currentTab = destination },
-                        label = if (isSlimNav) null else { { Text(stringResource(destination.label)) }},
-                        alwaysShowLabel = !isSlimNav,
-                        icon = {
-                            val icon = destination.icon
-                            when (icon) {
-                                is ImageVector -> {
-                                    Icon(imageVector = icon, contentDescription = null)
-                                }
-                                is Int -> {
-                                    Icon(painter = painterResource(id = icon), contentDescription = null)
-                                }
-                            }
-                        }
-                    )
-                }
-            }
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            AnimatedContent(
-                targetState = currentTab,
-                transitionSpec = {
-                    val duration = 400
-                    if (targetState.ordinal > initialState.ordinal) {
-                        slideInHorizontally(animationSpec = tween(duration)) { it } + fadeIn(tween(duration)) togetherWith
-                                slideOutHorizontally(animationSpec = tween(duration)) { -it } + fadeOut(tween(duration))
-                    } else {
-                        slideInHorizontally(animationSpec = tween(duration)) { -it } + fadeIn(tween(duration)) togetherWith
-                                slideOutHorizontally(animationSpec = tween(duration)) { it } + fadeOut(tween(duration))
-                    }
-                },
-                label = "TabTransition"
-            ) { targetTab ->
-                when (targetTab) {
-                    AppDestinations.HISTORY -> {
-                        HistoryScreen(
-                            viewModel = viewModel,
-                            currentFilter = currentFilter,
-                            onFilterChange = { newFilter -> currentFilter = newFilter },
-                            onNavigateToResult = { code -> onNavigateToResult(code, "Auto") }
-                        )
-                    }
-                    AppDestinations.SEARCH -> {
-                        SearchScreen(
-                            onNavigateToResult = onNavigateToResult,
-
-                            )
-                    }
-                    AppDestinations.CHARTS -> {
-                        StatisticsScreen(viewModel = viewModel)
-                    }
-                }
-            }
-        }
-    }
-    if (showProfileDialog) {
-        ProfileDialog(
-            userName = userName,
-            userBio = userBio,
-            userAvatar = userAvatar,
-            onDismiss = { showProfileDialog = false },
-            onSettingsClick = {
-                showProfileDialog = false
-            },
-            onMakeBackup = {
-                showProfileDialog = false
-                // Lógica para chamar o backup (ou navegar pra tela de backup)
-                // Ex: navController.navigate(Routes.BACKUP)
-            },
-            onRestoreBackup = {
-                showProfileDialog = false
-                // Lógica para restaurar
-            },
-            onViewHistory = {
-                showProfileDialog = false
-                // Lógica para ver histórico
-            },
-            onPhotoClick = {
-                photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            },
-            onEditProfileClick = {
-                showEditDialog = true
-            }
-        )
     }
 }
 
