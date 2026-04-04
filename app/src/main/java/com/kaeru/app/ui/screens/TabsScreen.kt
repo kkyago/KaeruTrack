@@ -167,6 +167,8 @@ fun KaeruTabsScreen(
             e.printStackTrace()
         }
     }
+    val checkUpdatesEnabled by viewModel.checkUpdatesOnStart.collectAsState()
+    val hasUpdate = updateRelease != null && checkUpdatesEnabled
 
     LaunchedEffect(Unit) {
         val account = GoogleSignIn.getLastSignedInAccount(context)
@@ -184,6 +186,7 @@ fun KaeruTabsScreen(
                 currentTab = currentTab,
                 packageCount = filteredCount,
                 userAvatar = localAvatar,
+                hasUpdate = hasUpdate,
                 onAvatarClick = { showProfileDialog = true },
                 onSettingsClick = onNavigateToSettings
             )

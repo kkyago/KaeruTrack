@@ -33,7 +33,14 @@
 -keep class retrofit2.** { *; }
 -keep class com.google.gson.** { *; }
 -keep class kotlin.coroutines.Continuation { *; }
+-keep class com.google.api.services.drive.** { *; }
+-keep class com.google.api.client.** { *; }
+-keep class com.google.api.services.drive.model.** { *; }
+-keep interface com.google.api.client.** { *; }
 -dontwarn com.google.gson.**
+-dontwarn sun.misc.**
+-dontwarn javax.naming.**
+-dontwarn org.ietf.jgss.**
 -keepclassmembers  interface * {
     @retrofit2.http.* <methods>;
 }

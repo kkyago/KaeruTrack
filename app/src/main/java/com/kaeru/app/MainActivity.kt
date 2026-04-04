@@ -1,6 +1,7 @@
 package com.kaeru.app
 
 import android.Manifest
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -352,6 +353,7 @@ fun TopAppBar(
     currentTab: AppDestinations,
     packageCount: Int,
     userAvatar: String?,
+    hasUpdate: Boolean,
     onAvatarClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
@@ -376,11 +378,21 @@ fun TopAppBar(
         ),
         actions = {
             IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                BadgedBox(
+                    badge = {
+                        if (hasUpdate) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             if (currentTab == AppDestinations.HISTORY) {
