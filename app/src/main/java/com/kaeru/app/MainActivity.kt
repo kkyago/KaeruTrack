@@ -358,7 +358,7 @@ fun TopAppBar(
     val title = when (currentTab) {
         AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
         AppDestinations.HISTORY -> stringResource(R.string.packages)
-        AppDestinations.CHARTS -> "Estatísticas"
+        AppDestinations.CHARTS -> stringResource(R.string.home_stats)
         else -> "Kaeru"
     }
 
@@ -420,14 +420,14 @@ fun TopAppBar(
                         if (!userAvatar.isNullOrEmpty()) {
                             AsyncImage(
                                 model = userAvatar,
-                                contentDescription = "Perfil",
+                                contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Person,
-                                contentDescription = "Perfil",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(6.dp)
                             )

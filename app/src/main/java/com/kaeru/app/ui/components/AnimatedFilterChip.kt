@@ -31,16 +31,15 @@ fun AnimatedFilterChip(
     label: String,
     icon: ImageVector
 ) {
-    val containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    val borderColor = if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant
 
     Surface(
         onClick = onClick,
         shape = CircleShape,
         color = containerColor,
         contentColor = contentColor,
-        border = if (!selected) BorderStroke(0.1.dp, borderColor) else null,
+        border = null,
         modifier = Modifier.height(32.dp)
     ) {
         Row(

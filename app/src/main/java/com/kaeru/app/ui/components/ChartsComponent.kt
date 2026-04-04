@@ -49,7 +49,8 @@ fun KaeruActivityChart(
     xAxisTitle: String,
     modifier: Modifier = Modifier
 ) {
-    val yValuesMax by remember(yData) { mutableIntStateOf(yData.maxOrNull() ?: 0) }
+    val yValuesMax = yData.maxOrNull() ?: 0
+    val topYAxis = ((yValuesMax * 1.2f) + 1.5).toInt()
     val tintColor = MaterialTheme.colorScheme.secondary
     val scrollState = rememberScrollState()
     val density = LocalDensity.current
@@ -70,9 +71,9 @@ fun KaeruActivityChart(
         XYGraph(
             xAxisModel = remember(xData) { CategoryAxisModel(xData) },
             yAxisModel = rememberIntLinearAxisModel(
-                range = 0..(1.2 * yValuesMax).toInt().coerceAtLeast(1),
-                minViewExtent = 1,
-                maxViewExtent = (1.2 * yValuesMax).toInt().coerceAtLeast(1),
+                range = 0..topYAxis,
+                minViewExtent = topYAxis,
+                maxViewExtent = topYAxis,
                 minorTickCount = 0,
             ),
             xAxisContent = AxisContent(

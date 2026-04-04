@@ -38,6 +38,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import com.kaeru.app.AppDestinations
+import com.kaeru.app.R
 import com.kaeru.app.data.utils.UpdateWorker
 import com.kaeru.app.tracking.database.BackupLog
 import com.kaeru.app.tracking.database.BackupLogDao
@@ -488,11 +489,20 @@ class TrackingViewModel(
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
         }
         val today = LocalDate.now()
+        val res = application.resources
 
-        when (period) {
+        val result: Pair<List<String>, List<Int>> = when (period) {
             KaeruStatPeriod.WEEK -> {
                 val startOfWeek = today.with(DayOfWeek.MONDAY)
-                val labels = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+                val labels = listOf(
+                    res.getString(R.string.day_mon),
+                    res.getString(R.string.day_tue),
+                    res.getString(R.string.day_wed),
+                    res.getString(R.string.day_thu),
+                    res.getString(R.string.day_fri),
+                    res.getString(R.string.day_sat),
+                    res.getString(R.string.day_sun)
+                )
                 val counts = MutableList(7) { 0 }
 
                 dates.filter { !it.isBefore(startOfWeek) && !it.isAfter(startOfWeek.plusDays(6)) }
@@ -500,11 +510,16 @@ class TrackingViewModel(
                         val dayIndex = date.dayOfWeek.value - 1
                         counts[dayIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
 
             KaeruStatPeriod.MONTH -> {
-                val labels = listOf("Sem 1", "Sem 2", "Sem 3", "Sem 4")
+                val labels = listOf(
+                    res.getString(R.string.week_1),
+                    res.getString(R.string.week_2),
+                    res.getString(R.string.week_3),
+                    res.getString(R.string.week_4)
+                )
                 val counts = MutableList(4) { 0 }
 
                 dates.filter { it.year == today.year && it.month == today.month }
@@ -517,11 +532,11 @@ class TrackingViewModel(
                         }
                         counts[weekIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
 
             KaeruStatPeriod.YEAR -> {
-                val labels = listOf("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+                val labels = (1..12).map { it.toString().padStart(2, '0') }
                 val counts = MutableList(12) { 0 }
 
                 dates.filter { it.year == today.year }
@@ -529,9 +544,10 @@ class TrackingViewModel(
                         val monthIndex = date.monthValue - 1
                         counts[monthIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
         }
+        result
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
