@@ -37,6 +37,7 @@ class NotificationHelper(private val context: Context) {
                 description = "Avisa quando há uma nova versão disponível"
             }
             notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(updateChannel)
         }
     }
     fun showNotification(trackingName: String, trackingCode: String, newStatus: String) {

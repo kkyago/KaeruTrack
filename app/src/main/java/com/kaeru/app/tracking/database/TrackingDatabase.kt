@@ -24,6 +24,13 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("ALTER TABLE tracking_history ADD COLUMN cpf TEXT DEFAULT NULL")
     }
 }
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `backup_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `action` TEXT NOT NULL, `fileName` TEXT NOT NULL, `timestamp` INTEGER NOT NULL)"
+        )
+    }
+}
 
 @Entity(tableName = "tracking_history")
 data class TrackingEntity(
@@ -52,10 +59,11 @@ interface TrackingDao {
     @Query("SELECT cpf FROM tracking_history WHERE code = :code")
     suspend fun getCpf(code: String): String?
 }
-@Database(entities = [TrackingEntity::class], version = 3, exportSchema = false)
+@Database(entities = [TrackingEntity::class, BackupLog::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun trackingDao(): TrackingDao
+    abstract fun backupLogDao(): BackupLogDao
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -66,7 +74,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kaeru_track_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

@@ -38,7 +38,10 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import com.kaeru.app.AppDestinations
+import com.kaeru.app.R
 import com.kaeru.app.data.utils.UpdateWorker
+import com.kaeru.app.tracking.database.BackupLog
+import com.kaeru.app.tracking.database.BackupLogDao
 import com.kaeru.app.tracking.utils.TrackingCarrier
 import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.screens.TrackingFilter
@@ -47,7 +50,6 @@ import java.util.concurrent.TimeUnit
 import java.time.Instant
 import java.time.ZoneId
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 import java.time.DayOfWeek
 import kotlinx.coroutines.flow.*
 import com.kaeru.app.ui.screens.KaeruStatPeriod
@@ -57,7 +59,8 @@ import java.util.Locale
 class TrackingViewModel(
     application: Application,
     private val repository: TrackingRepository,
-    private val dao: TrackingDao
+    private val dao: TrackingDao,
+    private val backupLogDao: BackupLogDao
 ) : AndroidViewModel(application) {
     private val _updateRelease = MutableStateFlow<GithubRelease?>(null)
     val updateRelease = _updateRelease.asStateFlow()
@@ -375,6 +378,11 @@ class TrackingViewModel(
                     outputStream.write(jsonString.toByteArray())
                 }
 
+                logBackupEvent(
+                    type = "LOCAL",
+                    action = "BACKUP",
+                    fileName = "${System.currentTimeMillis()}.json"
+                )
                 launch(Dispatchers.Main) {
                 }
 
@@ -385,6 +393,7 @@ class TrackingViewModel(
             }
         }
     }
+
     fun importBackup(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -419,6 +428,39 @@ class TrackingViewModel(
             }
         }
     }
+
+    suspend fun exportDatabaseToJson(): String {
+        val currentName = userName.first()
+        val currentBio = userBio.first()
+        val currentHistory = historyList.first()
+
+        val backup = BackupData(
+            userName = currentName,
+            userBio = currentBio,
+            history = currentHistory
+        )
+        return Gson().toJson(backup)
+    }
+
+    suspend fun importJsonToDatabase(jsonString: String) {
+        try {
+            val backup = Gson().fromJson(jsonString, BackupData::class.java)
+
+            userPrefs.saveName(backup.userName)
+            userPrefs.saveBio(backup.userBio)
+
+            val currentPackages = historyList.value
+            currentPackages.forEach { pkg ->
+                dao.deleteTracking(pkg.code)
+            }
+            if (backup.history.isNotEmpty()) {
+                dao.insertAll(backup.history)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     private val _appLanguage = MutableStateFlow(SYSTEM_DEFAULT)
     val appLanguage = _appLanguage.asStateFlow()
     fun setLanguage(languageCode: String) {
@@ -447,11 +489,20 @@ class TrackingViewModel(
             Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
         }
         val today = LocalDate.now()
+        val res = application.resources
 
-        when (period) {
+        val result: Pair<List<String>, List<Int>> = when (period) {
             KaeruStatPeriod.WEEK -> {
                 val startOfWeek = today.with(DayOfWeek.MONDAY)
-                val labels = listOf("Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom")
+                val labels = listOf(
+                    res.getString(R.string.day_mon),
+                    res.getString(R.string.day_tue),
+                    res.getString(R.string.day_wed),
+                    res.getString(R.string.day_thu),
+                    res.getString(R.string.day_fri),
+                    res.getString(R.string.day_sat),
+                    res.getString(R.string.day_sun)
+                )
                 val counts = MutableList(7) { 0 }
 
                 dates.filter { !it.isBefore(startOfWeek) && !it.isAfter(startOfWeek.plusDays(6)) }
@@ -459,11 +510,16 @@ class TrackingViewModel(
                         val dayIndex = date.dayOfWeek.value - 1
                         counts[dayIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
 
             KaeruStatPeriod.MONTH -> {
-                val labels = listOf("Sem 1", "Sem 2", "Sem 3", "Sem 4")
+                val labels = listOf(
+                    res.getString(R.string.week_1),
+                    res.getString(R.string.week_2),
+                    res.getString(R.string.week_3),
+                    res.getString(R.string.week_4)
+                )
                 val counts = MutableList(4) { 0 }
 
                 dates.filter { it.year == today.year && it.month == today.month }
@@ -476,11 +532,11 @@ class TrackingViewModel(
                         }
                         counts[weekIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
 
             KaeruStatPeriod.YEAR -> {
-                val labels = listOf("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")
+                val labels = (1..12).map { it.toString().padStart(2, '0') }
                 val counts = MutableList(12) { 0 }
 
                 dates.filter { it.year == today.year }
@@ -488,9 +544,10 @@ class TrackingViewModel(
                         val monthIndex = date.monthValue - 1
                         counts[monthIndex]++
                     }
-                Pair(labels, counts)
+                Pair(labels, counts.toList())
             }
         }
+        result
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -527,6 +584,23 @@ class TrackingViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+    val backupLogs = backupLogDao.getAllLogs().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun logBackupEvent(type: String, action: String, fileName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            backupLogDao.insertLog(BackupLog(type = type, action = action, fileName = fileName))
+        }
+    }
+
+    fun clearBackupHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            backupLogDao.clearHistory()
+        }
+    }
 }
 
 private fun parseDateStringToMillis(dateStr: String): Long {

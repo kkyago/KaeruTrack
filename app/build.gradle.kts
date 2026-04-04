@@ -9,6 +9,18 @@ android {
     namespace = "com.kaeru.app"
     compileSdk {
         version = release(36)
+        packaging {
+            resources {
+                excludes += "META-INF/DEPENDENCIES"
+                excludes += "META-INF/LICENSE"
+                excludes += "META-INF/LICENSE.txt"
+                excludes += "META-INF/license.txt"
+                excludes += "META-INF/NOTICE"
+                excludes += "META-INF/NOTICE.txt"
+                excludes += "META-INF/notice.txt"
+                excludes += "META-INF/ASL2.0"
+            }
+        }
     }
 
     defaultConfig {
@@ -54,6 +66,9 @@ android {
 }
 
 dependencies {
+    implementation("com.google.android.gms:play-services-auth:21.1.0")
+    implementation("com.google.api-client:google-api-client-android:1.33.0")
+    implementation("com.google.auth:google-auth-library-oauth2-http:1.19.0")
     implementation("io.github.koalaplot:koalaplot-core:0.11.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.3.3")
@@ -93,4 +108,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+    implementation("com.google.apis:google-api-services-drive:v3-rev20220815-2.0.0") {
+        exclude(group = "org.apache.httpcomponents")
+    }
 }

@@ -427,8 +427,10 @@ fun ProfileDialog(
     userName: String,
     userBio: String,
     userAvatar: String?,
+    isUserLoggedIn: Boolean,
     onDismiss: () -> Unit,
-    onSettingsClick: () -> Unit,
+    onLoginClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     onMakeBackup: () -> Unit,
     onRestoreBackup: () -> Unit,
     onViewHistory: () -> Unit,
@@ -505,7 +507,7 @@ fun ProfileDialog(
                                 color = MaterialTheme.colorScheme.surfaceVariant,
                                 shape = CircleShape,
                                 modifier = Modifier
-                                    .size(48.dp)
+                                    .size(45.dp)
                                     .clip(CircleShape)
                                     .clickable { onPhotoClick() }
                             ) {
@@ -557,12 +559,12 @@ fun ProfileDialog(
                             OutlinedButton(
                                 onClick = {
                                     onDismiss()
-                                    onSettingsClick()
+                                    if (isUserLoggedIn) onLogoutClick() else onLoginClick()
                                 },
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                                 modifier = Modifier.height(36.dp)
                             ) {
-                                Text("Log in", fontSize = 13.sp)
+                                Text(if (isUserLoggedIn) "Log out" else "Log in", fontSize = 13.sp)
                             }
                         }
                     }
@@ -573,18 +575,18 @@ fun ProfileDialog(
                         containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
                         items = listOf(
                             Material3SettingsItem(
-                                icon = rememberVectorPainter(Icons.Outlined.CloudUpload),
-                                title = { Text("Fazer backup") },
+                                icon = painterResource(R.drawable.ic_backup),
+                                title = { Text(stringResource(R.string.cloud_backup)) },
                                 onClick = onMakeBackup
                             ),
                             Material3SettingsItem(
-                                icon = rememberVectorPainter(Icons.Outlined.SettingsBackupRestore),
-                                title = { Text("Restaurar backup") },
+                                icon = painterResource(R.drawable.ic_restore),
+                                title = { Text(stringResource(R.string.cloud_restore)) },
                                 onClick = onRestoreBackup
                             ),
                             Material3SettingsItem(
                                 icon = rememberVectorPainter(Icons.Outlined.History),
-                                title = { Text("Histórico de backups") },
+                                title = { Text(stringResource(R.string.backup_history)) },
                                 onClick = onViewHistory
                             )
                         )

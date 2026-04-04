@@ -18,17 +18,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kaeru.app.tracking.TrackingViewModel
 import com.kaeru.app.ui.components.KaeruActivityChart
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.res.stringResource
+import com.kaeru.app.R
 import com.kaeru.app.tracking.utils.TrackingCarrier
+import com.kaeru.app.ui.components.Material3SettingsGroup
+import com.kaeru.app.ui.components.Material3SettingsItem
 
-enum class KaeruStatPeriod(val label: String, val xAxisTitle: String) {
-    WEEK("Semana", "Dias da Semana"),
-    MONTH("Mês", "Semanas"),
-    YEAR("Ano", "Meses")
+enum class KaeruStatPeriod(val label: Int, val xAxisTitle: Int) {
+    WEEK(R.string.week_label, R.string.days_label),
+    MONTH(R.string.month_label, R.string.weeks_label),
+    YEAR(R.string.year_label, R.string.months_label)
 }
 
 data class CarrierStat(val name: String, val avgDays: Int, val icon: ImageVector)
@@ -59,7 +63,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "encomendas cadastradas",
+                text = stringResource(R.string.registered_packages),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -89,7 +93,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "Em trânsito",
+                        text = stringResource(R.string.in_transit_label),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -111,7 +115,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Entregues",
+                        text = stringResource(R.string.delivered_label),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -123,7 +127,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Atividade de Rastreio",
+            text = stringResource(R.string.tracking_activity),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -141,14 +145,15 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
                     onClick = { viewModel.setStatPeriod(period) },
                     label = {
                         Text(
-                            text = period.label,
+                            stringResource(id = period.label),
                             fontWeight = if (selectedPeriod == period) FontWeight.Bold else FontWeight.Normal
                         )
                     },
+                    border = null,
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
+                    shape = RoundedCornerShape(16.dp)
                 )
             }
         }
@@ -161,7 +166,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
                     KaeruActivityChart(
                         xData = data.first,
                         yData = data.second,
-                        xAxisTitle = selectedPeriod.xAxisTitle,
+                        xAxisTitle = stringResource(id = selectedPeriod.xAxisTitle),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -171,7 +176,7 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            text = "Tempo Médio de Entrega",
+            text = stringResource(R.string.average_delivery_time),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -180,74 +185,37 @@ fun StatisticsScreen(viewModel: TrackingViewModel) {
 
         if (carrierStats.isEmpty()) {
             Text(
-                text = "Entregue mais pacotes para gerar as médias.",
+                text = stringResource(R.string.no_data_enough),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
         } else {
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                carrierStats.forEachIndexed { index, stat ->
-                    val (carrierName, carrierIcon) = getCarrierDetails(stat.carrier)
+                Material3SettingsGroup(
+                    items = buildList {
+                        carrierStats.forEach { stat ->
+                            val (carrierName, carrierIcon) = getCarrierDetails(stat.carrier)
 
-                    val shape = when {
-                        carrierStats.size == 1 -> RoundedCornerShape(16.dp)
-                        index == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
-                        index == carrierStats.lastIndex -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-                        else -> RoundedCornerShape(0.dp)
-                    }
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = shape,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(carrierIcon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Text(
-                                text = carrierName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer
-                            ) {
-                                Text(
-                                    text = "${stat.avgDays} dias",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            add(
+                                Material3SettingsItem(
+                                    icon = rememberVectorPainter(carrierIcon),
+                                    title = { Text(carrierName, fontWeight = FontWeight.Bold) },
+                                    trailingContent = {
+                                        Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+                                            Text(
+                                                text = "${stat.avgDays} dias",
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(4.dp)
+                                            )
+                                        }
+                                    },
+                                    onClick = { }
                                 )
-                            }
+                            )
                         }
                     }
-                    if (index < carrierStats.lastIndex) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
-                    }
-                }
+                )
             }
         }
 
