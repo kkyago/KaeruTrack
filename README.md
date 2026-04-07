@@ -16,6 +16,8 @@ O **KaeruTrack** é um projeto de código aberto desenvolvido de forma independe
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_1.jpg" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_2.jpg" width="30%" />
 <img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_3.jpg" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_4.jpg" width="30%" />
+<img src="fastlane/metadata/android/en-US/images/screenshots/screenshot_5.jpg" width="30%" />
 </div>
 
 <div align="center">
