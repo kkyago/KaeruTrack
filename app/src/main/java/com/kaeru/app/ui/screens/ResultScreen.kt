@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -24,10 +25,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -270,9 +274,15 @@ fun ResultScreen(
                             } else {
                                 itemsIndexed(events) { index, event ->
                                     if (index == 0) {
-                                        LatestEventCard(event)
+                                        LatestEventCard(
+                                            event = event,
+                                            hasNext = events.size > 1
+                                        )
                                     } else {
-                                        HistoryEventItem(event)
+                                        HistoryEventItem(
+                                            event = event,
+                                            isLastItem = index == events.lastIndex
+                                        )
                                     }
                                 }
                             }
@@ -445,8 +455,15 @@ fun TrackingHeaderCardCompact(
 }
 
 @Composable
-fun LatestEventCard(event: TrackingEvent) {
+fun LatestEventCard(
+    event: TrackingEvent,
+    hasNext: Boolean = false
+) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val lineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+    val density = LocalDensity.current
+    val gapPx = with(density) { 24.dp.toPx() }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.35f,
@@ -458,33 +475,54 @@ fun LatestEventCard(event: TrackingEvent) {
     )
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(41.dp)
-                    .scale(pulseScale)
-                    .background(primaryColor.copy(alpha = pulseAlpha), RoundedCornerShape(14.dp))
-            )
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(primaryColor, RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                val isDelivered = event.status?.isDeliveredStatus() ?: false
-                val icon = if (isDelivered) Icons.Default.Check else Icons.Default.LocalShipping
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .width(48.dp)
+                .fillMaxHeight()
+                .drawBehind {
+                    if (hasNext) {
+                        drawLine(
+                            color = lineColor,
+                            start = Offset(size.width / 2f, size.height / 2f),
+                            end = Offset(size.width / 2f, size.height + gapPx),
+                            strokeWidth = 2.dp.toPx()
+                        )
+                    }
+                }
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(41.dp)
+                        .scale(pulseScale)
+                        .background(primaryColor.copy(alpha = pulseAlpha), RoundedCornerShape(14.dp))
                 )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(primaryColor, RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val isDelivered = event.status?.isDeliveredStatus() ?: false
+                    val icon = if (isDelivered) Icons.Default.Check else Icons.Default.LocalShipping
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
+
         Spacer(modifier = Modifier.width(16.dp))
+
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -511,27 +549,80 @@ fun LatestEventCard(event: TrackingEvent) {
 }
 
 @Composable
-fun HistoryEventItem(event: TrackingEvent) {
+fun HistoryEventItem(
+    event: TrackingEvent,
+    isLastItem: Boolean
+) {
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val lineColor = textColor.copy(alpha = 0.3f)
+    val density = LocalDensity.current
+    val gapPx = with(density) { 24.dp.toPx() }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp),
+            .height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(48.dp)) {
-            Icon(
-                imageVector = Icons.Outlined.LocalShipping,
-                contentDescription = null,
-                tint = textColor.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .width(48.dp)
+                .fillMaxHeight()
+                .drawBehind {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(size.width / 2f, 0f),
+                        end = Offset(size.width / 2f, size.height / 2f),
+                        strokeWidth = 2.dp.toPx()
+                    )
+
+                    if (!isLastItem) {
+                        drawLine(
+                            color = lineColor,
+                            start = Offset(size.width / 2f, size.height / 2f),
+                            end = Offset(size.width / 2f, size.height + gapPx),
+                            strokeWidth = 2.dp.toPx()
+                        )
+                    }
+                }
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.background, RoundedCornerShape(14.dp))
+                    .border(BorderStroke(1.5.dp, lineColor), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.LocalShipping,
+                    contentDescription = null,
+                    tint = textColor.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
-            Text(text = event.status ?: stringResource(R.string.status), color = textColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = 12.dp)
+        ) {
+            Text(
+                text = event.status ?: stringResource(R.string.status),
+                color = textColor,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
             if (!event.location.isNullOrBlank()) {
-                Text(text = event.location, color = textColor.copy(alpha = 0.7f), fontSize = 13.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = event.location,
+                    color = textColor.copy(alpha = 0.7f),
+                    fontSize = 13.sp
+                )
             }
             Spacer(modifier = Modifier.height(8.dp))
             val prettyDate = DateUtils.formatDatePretty(event.date, event.time)
