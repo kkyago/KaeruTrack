@@ -404,7 +404,8 @@ fun TopAppBar(
                             color = MaterialTheme.colorScheme.primary,
                             shape = CircleShape,
                             modifier = Modifier
-                                .size(26.dp)
+                                .height(26.dp)
+                                .widthIn(min = 26.dp)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
