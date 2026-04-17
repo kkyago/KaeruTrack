@@ -146,4 +146,8 @@
     <string name="week_2">Sem 2</string>
     <string name="week_3">Sem 3</string>
     <string name="week_4">Sem 4</string>
+    <string name="source_code">Código Fonte</string>
+    <string name="license">Licença</string>
+    <string name="source_code_label">Veja o repositório no GitHub</string>
+    <string name="source_code_info">Informações sobre o código fonte</string>
 </resources>

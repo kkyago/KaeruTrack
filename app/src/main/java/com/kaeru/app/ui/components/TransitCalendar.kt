@@ -94,7 +94,7 @@ fun TransitCalendarDialog(
                     IconButton(onClick = {
                         coroutineScope.launch { state.animateScrollToMonth(visibleMonth.minusMonths(1)) }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Anterior")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null)
                     }
 
                     Text(
@@ -106,7 +106,7 @@ fun TransitCalendarDialog(
                     IconButton(onClick = {
                         coroutineScope.launch { state.animateScrollToMonth(visibleMonth.plusMonths(1)) }
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Próximo")
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                     }
                 }
 

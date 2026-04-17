@@ -1,38 +1,44 @@
 package com.kaeru.app.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import DynamicFloatingLogo
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.sp
 import com.kaeru.app.BuildConfig
 import com.kaeru.app.R
-import com.kaeru.app.tracking.TrackingViewModel
-
+import com.kaeru.app.ui.components.Material3SettingsGroup
+import com.kaeru.app.ui.components.Material3SettingsItem
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import com.kaeru.app.ui.components.DeveloperCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
-    viewModel: TrackingViewModel, onBack: () -> Unit
+    onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
-    val scrollState = rememberScrollState()
-    val localContext = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -41,132 +47,174 @@ fun AboutScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = null
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
             )
         }
-    ) { innerPadding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(16.dp))
 
-            Icon(
-                painter = painterResource(R.drawable.ic_icon),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier
-                    .size(215.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            )
+            ExpandableLogoCard()
 
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-            )
+            Spacer(Modifier.height(24.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.secondary,
-                            shape = CircleShape,
-                        )
-                        .padding(
-                            horizontal = 6.dp,
-                            vertical = 2.dp,
-                        ),
-                )
-                Spacer(Modifier.width(4.dp))
+            DeveloperCard(uriHandler = uriHandler)
 
-                Text(
-                    text = "${BuildConfig.VERSION_CODE}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.secondary,
-                            shape = CircleShape,
-                        )
-                        .padding(
-                            horizontal = 6.dp,
-                            vertical = 2.dp,
-                        ),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(32.dp))
 
-            Text(
-                text = stringResource(R.string.creator_name),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-
-            Row{
-                IconButton(
-                    onClick = { uriHandler.openUri("https://github.com/kkyago") }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.github),
-                        contentDescription = null
+            Material3SettingsGroup(
+                title = stringResource(R.string.source_code_info),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                items = listOf(
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.github),
+                        title = { Text(stringResource(R.string.source_code)) },
+                        description = { Text(stringResource(R.string.source_code_label)) },
+                        onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack") }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.ic_info),
+                        title = { Text(stringResource(R.string.license)) },
+                        description = { Text(stringResource(R.string.license_label)) },
+                        onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack/blob/master/LICENSE.md") }
                     )
-                }
-            }
+                )
+            )
+
+            Spacer(Modifier.height(48.dp))
         }
     }
 }
 
 @Composable
-fun BadgeTag(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.secondary,
-        modifier = Modifier
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = CircleShape,
-            )
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+fun ExpandableLogoCard() {
+    var isExpanded by remember { mutableStateOf(false) }
+    val ClimateCrisis = FontFamily(
+        Font(R.font.climatecrisis)
     )
-}
 
-@Composable
-fun CollaboratorItem(name: String, role: String, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val animatedSize by animateDpAsState(
+        targetValue = if (isExpanded) 200.dp else 80.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "logo_size"
+    )
+
+    val logoContent = remember {
+        movableContentOf {
+            DynamicFloatingLogo(
+                baseSize = animatedSize,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+
+    val interactionSource = remember { MutableInteractionSource() }
+
+    val textContent = remember(isExpanded) {
+        movableContentOf {
+            Column(
+                horizontalAlignment = if (isExpanded) Alignment.CenterHorizontally else Alignment.Start
+            ) {
+                Text(
+                    text = "Kaeru",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontFamily = ClimateCrisis,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    letterSpacing = (-0.5).sp
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = BuildConfig.VERSION_NAME,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (BuildConfig.DEBUG) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = "DEBUG",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    ElevatedCard(
+        shape = RoundedCornerShape(32.dp),
         modifier = Modifier
-            .clickable(onClick = onClick)
-            .padding(vertical = 4.dp)
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                isExpanded = !isExpanded
+            }
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     ) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = role,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.secondary
-        )
+        if (isExpanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 40.dp, horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                logoContent()
+                Spacer(Modifier.height(24.dp))
+                textContent()
+            }
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                logoContent()
+                Spacer(Modifier.width(20.dp))
+                textContent()
+            }
+        }
     }
 }

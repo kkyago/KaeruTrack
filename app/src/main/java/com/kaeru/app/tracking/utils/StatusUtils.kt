@@ -7,7 +7,8 @@ fun String?.isDeliveredStatus(): Boolean {
     val deliveryKeywords = listOf(
         "entregue",
         "entrega realizada",
-        "delivered"
+        "delivered",
+        "assinado"
     )
 
     return deliveryKeywords.any { normalized.contains(it) }

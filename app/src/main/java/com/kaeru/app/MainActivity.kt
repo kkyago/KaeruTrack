@@ -1,21 +1,17 @@
 package com.kaeru.app
 
 import android.Manifest
-import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -31,10 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,7 +36,6 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -55,17 +48,8 @@ import com.kaeru.app.ui.screens.*
 import com.kaeru.app.ui.screens.settings.*
 import com.kaeru.app.ui.theme.KaeruTrackTheme
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.content.edit
 import coil.compose.AsyncImage
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.google.api.services.drive.DriveScopes
-import com.kaeru.app.data.helper.GoogleDriveHelper
-import com.kaeru.app.tracking.utils.isDeliveredStatus
 import com.kaeru.app.ui.components.BatteryOptimizationDialog
-import com.kaeru.app.ui.components.EditProfileDialog
-import com.kaeru.app.ui.components.ProfileDialog
 
 class MainActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
@@ -331,7 +315,6 @@ fun KaeruNavGraph(viewModel: TrackingViewModel, updateRelease: GithubRelease?) {
 
         composable(route = Routes.ABOUT) {
             AboutScreen(
-                viewModel = viewModel,
                 onBack = { navController.popBackStack() }
             )
         }
@@ -404,7 +387,8 @@ fun TopAppBar(
                             color = MaterialTheme.colorScheme.primary,
                             shape = CircleShape,
                             modifier = Modifier
-                                .size(26.dp)
+                                .height(26.dp)
+                                .widthIn(min = 26.dp)
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
