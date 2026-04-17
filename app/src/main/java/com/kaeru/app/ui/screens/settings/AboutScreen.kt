@@ -13,10 +13,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -31,37 +33,12 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import com.kaeru.app.ui.components.DeveloperCard
 
-private data class CommunityLink(
-    val label: String,
-    val description: String? = null,
-    val iconRes: Int,
-    val url: String
-)
-
-private val communityLinks = listOf(
-    CommunityLink(
-        label = "Código Fonte",
-        description = "Veja o repositório no GitHub",
-        iconRes = R.drawable.github,
-        url = "https://github.com/kkyago/KaeruTrack"
-    ),
-    CommunityLink(
-        label = "Licença",
-        description = "GPL-3.0 License",
-        iconRes = R.drawable.github,
-        url = "https://github.com/kkyago/KaeruTrack/blob/main/LICENSE"
-    )
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onBack: () -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
-    val ClimateCrisis = FontFamily(
-        Font(R.font.climatecrisis)
-    )
 
     Scaffold(
         topBar = {
@@ -97,15 +74,22 @@ fun AboutScreen(
             Spacer(Modifier.height(32.dp))
 
             Material3SettingsGroup(
-                title = "Projeto & Comunidade",
-                items = communityLinks.map { link ->
+                title = stringResource(R.string.source_code_info),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                items = listOf(
                     Material3SettingsItem(
-                        icon = painterResource(link.iconRes),
-                        title = { Text(link.label, fontWeight = FontWeight.SemiBold) },
-                        description = link.description?.let { { Text(it) } },
-                        onClick = { uriHandler.openUri(link.url) }
+                        icon = painterResource(R.drawable.github),
+                        title = { Text(stringResource(R.string.source_code)) },
+                        description = { Text(stringResource(R.string.source_code_label)) },
+                        onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack") }
+                    ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.ic_info),
+                        title = { Text(stringResource(R.string.license)) },
+                        description = { Text(stringResource(R.string.license_label)) },
+                        onClick = { uriHandler.openUri("https://github.com/kkyago/KaeruTrack/blob/master/LICENSE.md") }
                     )
-                }
+                )
             )
 
             Spacer(Modifier.height(48.dp))

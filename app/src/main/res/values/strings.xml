@@ -148,4 +148,10 @@
     <string name="week_2">Week 2</string>
     <string name="week_3">Week 3</string>
     <string name="week_4">Week 4</string>
+    <string name="ko_fi">Ko-fi</string>
+    <string name="source_code">Source Code</string>
+    <string name="license">License</string>
+    <string name="source_code_label">View the repository on GitHub</string>
+    <string name="license_label">GNU General Public License v3.0</string>
+    <string name="source_code_info">Source code info</string>
 </resources>

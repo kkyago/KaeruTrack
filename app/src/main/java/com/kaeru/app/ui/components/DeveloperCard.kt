@@ -7,17 +7,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +30,9 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DeveloperCard(uriHandler: UriHandler) {
+    val ClimateCrisis = FontFamily(
+        Font(R.font.climatecrisis)
+    )
     ElevatedCard(
         shape = RoundedCornerShape(32.dp),
         modifier = Modifier.fillMaxWidth(),
@@ -53,6 +57,7 @@ fun DeveloperCard(uriHandler: UriHandler) {
                     Text(
                         text = "Kkyago",
                         style = MaterialTheme.typography.headlineMedium,
+                        fontFamily = ClimateCrisis,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
                         lineHeight = 34.sp,
@@ -107,33 +112,23 @@ fun DeveloperCard(uriHandler: UriHandler) {
 
             Spacer(Modifier.height(16.dp))
 
-            val kofiInteraction = remember { MutableInteractionSource() }
-            val apoiaInteraction = remember { MutableInteractionSource() }
-
-            val isKofiPressed by kofiInteraction.collectIsPressedAsStateWithPulse()
-            val isApoiaPressed by apoiaInteraction.collectIsPressedAsStateWithPulse()
-
-            val kofiWeight = animateExpressiveWeight(isKofiPressed, isApoiaPressed, 1.3f, 0.7f)
-            val apoiaWeight = animateExpressiveWeight(isApoiaPressed, isKofiPressed, 1.3f, 0.7f)
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                ExpressiveTextButton(
+                Button(
                     onClick = { uriHandler.openUri("https://ko-fi.com/kkyago") },
-                    icon = Icons.Outlined.Coffee,
-                    label = "Ko-fi",
-                    interactionSource = kofiInteraction,
-                    weight = kofiWeight
-                )
-                ExpressiveTextButton(
-                    onClick = { uriHandler.openUri("https://apoia.se/kkyago") },
-                    icon = Icons.Default.Favorite,
-                    label = "Apoia.se",
-                    interactionSource = apoiaInteraction,
-                    weight = apoiaWeight
-                )
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Icon(Icons.Outlined.Coffee, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.ko_fi), fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                }
             }
         }
     }
@@ -201,32 +196,6 @@ private fun RowScope.ExpressiveIconButton(
     }
 }
 
-@Composable
-private fun RowScope.ExpressiveTextButton(
-    onClick: () -> Unit,
-    icon: ImageVector,
-    label: String,
-    interactionSource: MutableInteractionSource,
-    weight: Float
-) {
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        shape = CircleShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ),
-        modifier = Modifier
-            .weight(weight)
-            .height(48.dp)
-    ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label, fontWeight = FontWeight.Bold)
-    }
-}
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ExpressiveAvatar(avatarUrl: String, sizeDp: Int) {
@@ -247,16 +216,20 @@ private fun ExpressiveAvatar(avatarUrl: String, sizeDp: Int) {
                 scale.animateTo(1f, spring(Spring.DampingRatioHighBouncy, Spring.StiffnessMedium))
             }
         },
-        modifier = Modifier.size(sizeDp.dp).scale(scale.value),
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .scale(scale.value),
         shape = currentShape,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         tonalElevation = 4.dp,
     ) {
         AsyncImage(
             model = avatarUrl,
-            contentDescription = "Avatar",
+            contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().scale(1f / scale.value.coerceAtLeast(0.01f)),
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(1f / scale.value.coerceAtLeast(0.01f)),
             placeholder = null
         )
     }
