@@ -1,19 +1,24 @@
 package com.kaeru.app.tracking
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class MelhorEnvioResponse(
-    @SerializedName("data") val data: MelhorEnvioData?
+    @SerialName("data") val data: MelhorEnvioData?
 )
+@Serializable
 data class MelhorEnvioData(
-    @SerializedName("result") val result: MelhorEnvioResult?
+    @SerialName("result") val result: MelhorEnvioResult?
 )
+@Serializable
 data class MelhorEnvioResult(
-    @SerializedName("trackingEvents") val events: List<MelhorEnvioEvent>?
+    @SerialName("trackingEvents") val events: List<MelhorEnvioEvent>?
 )
+@Serializable
 data class MelhorEnvioEvent(
-    @SerializedName("createdAt") val createdAt: String?,
-    @SerializedName("title") val title: String?,
-    @SerializedName("from") val fromLocation: String?,
-    @SerializedName("description") val description: String?
+    @SerialName("createdAt") val createdAt: String?,
+    @SerialName("title") val title: String?,
+    @SerialName("from") val fromLocation: String?,
+    @SerialName("description") val description: String?
 )

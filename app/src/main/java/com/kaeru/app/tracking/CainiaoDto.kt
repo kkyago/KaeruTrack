@@ -1,17 +1,21 @@
 package com.kaeru.app.tracking
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class CainiaoResponse(
-    @SerializedName("module") val modules: List<CainiaoModule>?,
-    @SerializedName("success") val success: Boolean?
+    @SerialName("module") val modules: List<CainiaoModule>?,
+    @SerialName("success") val success: Boolean?
 )
+@Serializable
 data class CainiaoModule(
-    @SerializedName("mailNo") val code: String?,
-    @SerializedName("detailList") val details: List<CainiaoDetail>?
+    @SerialName("mailNo") val code: String?,
+    @SerialName("detailList") val details: List<CainiaoDetail>?
 )
+@Serializable
 data class CainiaoDetail(
-    @SerializedName("timeStr") val dateString: String?,
-    @SerializedName("standerdDesc") val statusDescription: String?,
-    @SerializedName("desc") val altDescription: String?
+    @SerialName("timeStr") val dateString: String?,
+    @SerialName("standerdDesc") val statusDescription: String?,
+    @SerialName("desc") val altDescription: String?
 )

@@ -1,7 +1,6 @@
 package com.kaeru.app.tracking
 
 import android.content.Context
-import com.google.gson.Gson
 import com.kaeru.app.R
 import com.kaeru.app.data.scraper.LinketrackWebViewScraper
 import com.kaeru.app.tracking.utils.TrackingCarrier
@@ -17,6 +16,7 @@ import org.jsoup.Jsoup
 import okhttp3.CookieJar
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
+import kotlinx.serialization.json.Json
 
 class TrackingRepository(private val context: Context) {
 
@@ -33,12 +33,15 @@ class TrackingRepository(private val context: Context) {
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
-
-    private val gson = Gson()
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
 
     fun isCarrierSupported(code: String): Boolean {
         return TrackingCarrier.fromCode(code) != TrackingCarrier.UNKNOWN
     }
+
     suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto", cpf: String? = null): TrackingResponse? {
         val cleanCode = code.trim().uppercase()
 
@@ -91,7 +94,8 @@ class TrackingRepository(private val context: Context) {
                     .build()
                 val response = client.newCall(request).execute()
                 val bodyString = response.body?.string() ?: return@withContext null
-                val rawData = gson.fromJson(bodyString, SpxResponse::class.java)
+                val rawData = jsonParser.decodeFromString<SpxResponse>(bodyString)
+
                 val records = rawData.data?.slsTrackingInfo?.records ?: return@withContext null
                 val uiEvents = records.map { record ->
                     val dateObj = java.util.Date(record.actualTime * 1000L)
@@ -148,8 +152,10 @@ class TrackingRepository(private val context: Context) {
                     .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build()
                 val response = client.newCall(request).execute()
-                val rawData = gson.fromJson(response.body?.string(), JTExpressResponse::class.java)
-                if (rawData?.success != true || rawData.data?.details == null) {
+                val bodyString = response.body?.string() ?: return@withContext null
+                val rawData = jsonParser.decodeFromString<JTExpressResponse>(bodyString)
+
+                if (rawData.success != true || rawData.data?.details == null) {
                     return@withContext null
                 }
                 val uiEvents = rawData.data.details.map { detail ->
@@ -211,7 +217,8 @@ class TrackingRepository(private val context: Context) {
                 if (body.isNullOrBlank()) {
                     return@withContext null
                 }
-                val rawData = gson.fromJson(body, TotalExpressResponse::class.java)
+                val rawData = jsonParser.decodeFromString<TotalExpressResponse>(body)
+
                 val layouts = rawData.data?.layouts
                 if (layouts.isNullOrEmpty()) {
                     return@withContext null
@@ -314,7 +321,9 @@ class TrackingRepository(private val context: Context) {
             try {
                 val request = Request.Builder().url("https://global.cainiao.com/global/detail.json?mailNos=$code&lang=pt-BR").build()
                 val response = client.newCall(request).execute()
-                val rawData = gson.fromJson(response.body?.string(), CainiaoResponse::class.java)
+                val bodyString = response.body?.string() ?: return@withContext null
+                val rawData = jsonParser.decodeFromString<CainiaoResponse>(bodyString)
+
                 val packageData = rawData.modules?.firstOrNull() ?: return@withContext null
                 val uiEvents = packageData.details?.map { detail ->
                     val parts = (detail.dateString ?: "").split(" ")
@@ -337,8 +346,10 @@ class TrackingRepository(private val context: Context) {
                 val body = """{"operationName":"searchParcel","variables":{"tracker":{"trackingCode":"$code","type":"melhorenvio"}},"query":"mutation searchParcel(${"$"}tracker:TrackerSearchInput!){result:searchParcel(tracker:${"$"}tracker){trackingEvents{title createdAt from description}}}"}""".toRequestBody("application/json".toMediaType())
                 val req = Request.Builder().url("https://melhor-rastreio-api.melhorrastreio.com.br/graphql").post(body).header("User-Agent","Mozilla/5.0").build()
                 val res = client.newCall(req).execute()
-                val data = gson.fromJson(res.body?.string(), MelhorEnvioResponse::class.java)
-                val evs = data?.data?.result?.events?.map {
+                val bodyString = res.body?.string() ?: return@withContext null
+                val data = jsonParser.decodeFromString<MelhorEnvioResponse>(bodyString)
+
+                val evs = data.data?.result?.events?.map {
                     val iso = it.createdAt?:""; val p = if(iso.contains("T")) iso.split("T") else listOf(iso,"")
                     val d = try{val s=p[0].split("-"); "${s[2]}/${s[1]}/${s[0]}"}catch(e:Exception){p[0]}
                     TrackingEvent(status=it.title?:"", date=d, time=p[1].take(5), location=it.fromLocation?:"", subStatus=null)

@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import com.kaeru.app.data.UserPreferences
-import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import com.kaeru.app.data.BackupData
@@ -36,7 +35,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.WorkRequest
 import com.kaeru.app.AppDestinations
 import com.kaeru.app.R
 import com.kaeru.app.data.utils.UpdateWorker
@@ -55,6 +53,7 @@ import kotlinx.coroutines.flow.*
 import com.kaeru.app.ui.screens.KaeruStatPeriod
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.serialization.json.Json
 
 class TrackingViewModel(
     application: Application,
@@ -62,6 +61,11 @@ class TrackingViewModel(
     private val dao: TrackingDao,
     private val backupLogDao: BackupLogDao
 ) : AndroidViewModel(application) {
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
     private val _updateRelease = MutableStateFlow<GithubRelease?>(null)
     val updateRelease = _updateRelease.asStateFlow()
     fun setUpdateRelease(release: GithubRelease?) {
@@ -244,11 +248,11 @@ class TrackingViewModel(
                 updateHistoryStatusIfExists(cleanCode, response)
             } else {
                 if (cleanCode.length >= 10 && cleanCode.all { it.isDigit() } && providedCpf != null) {
-                errorMessage = "Erro de CPF"
-                showCpfDialog = true
-            } else {
-                errorMessage = "Pacote não encontrado ou erro na conexão."
-            }
+                    errorMessage = "Erro de CPF"
+                    showCpfDialog = true
+                } else {
+                    errorMessage = "Pacote não encontrado ou erro na conexão."
+                }
             }
             isLoading = false
         }
@@ -371,7 +375,8 @@ class TrackingViewModel(
                     userBio = currentBio,
                     history = currentHistory
                 )
-                val jsonString = Gson().toJson(backup)
+
+                val jsonString = jsonParser.encodeToString(backup)
 
                 getApplication<Application>().contentResolver.openOutputStream(uri)?.use { outputStream ->
                     outputStream.write(jsonString.toByteArray())
@@ -410,11 +415,13 @@ class TrackingViewModel(
                 }
 
                 val jsonString = stringBuilder.toString()
-                val backup = Gson().fromJson(jsonString, BackupData::class.java)
+                val backup = jsonParser.decodeFromString<BackupData>(jsonString)
+
                 userPrefs.saveName(backup.userName)
                 userPrefs.saveBio(backup.userBio)
                 if (backup.history.isNotEmpty()) {
                     dao.insertAll(backup.history)
+                    scheduleTrackingWorker(getApplication<Application>().applicationContext)
                 }
 
                 launch(Dispatchers.Main) {
@@ -438,12 +445,12 @@ class TrackingViewModel(
             userBio = currentBio,
             history = currentHistory
         )
-        return Gson().toJson(backup)
+        return jsonParser.encodeToString(backup)
     }
 
     suspend fun importJsonToDatabase(jsonString: String) {
         try {
-            val backup = Gson().fromJson(jsonString, BackupData::class.java)
+            val backup = jsonParser.decodeFromString<BackupData>(jsonString)
 
             userPrefs.saveName(backup.userName)
             userPrefs.saveBio(backup.userBio)
@@ -454,6 +461,7 @@ class TrackingViewModel(
             }
             if (backup.history.isNotEmpty()) {
                 dao.insertAll(backup.history)
+                scheduleTrackingWorker(getApplication<Application>().applicationContext)
             }
         } catch (e: Exception) {
             e.printStackTrace()

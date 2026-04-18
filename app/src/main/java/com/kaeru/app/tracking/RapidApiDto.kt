@@ -1,28 +1,35 @@
 package com.kaeru.app.tracking
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class RapidApiResponse(
-    @SerializedName("correios_object") val correiosObject: CorreiosObject?
+    @SerialName("correios_object") val correiosObject: CorreiosObject?
 )
+@Serializable
 data class CorreiosObject(
-    @SerializedName("codObjeto") val code: String?,
-    @SerializedName("eventos") val events: List<RapidApiEvent>?
+    @SerialName("codObjeto") val code: String?,
+    @SerialName("eventos") val events: List<RapidApiEvent>?
 )
+@Serializable
 data class RapidApiEvent(
-    @SerializedName("descricao") val description: String?,
-    @SerializedName("dtHrCriado") val createdAt: CreatedAt?,
-    @SerializedName("unidade") val unit: UnitObject?,
-    @SerializedName("unidadeDestino") val destination: UnitObject?
+    @SerialName("descricao") val description: String?,
+    @SerialName("dtHrCriado") val createdAt: CreatedAt?,
+    @SerialName("unidade") val unit: UnitObject?,
+    @SerialName("unidadeDestino") val destination: UnitObject?
 )
+@Serializable
 data class CreatedAt(
-    @SerializedName("date") val dateIso: String?
+    @SerialName("date") val dateIso: String?
 )
+@Serializable
 data class UnitObject(
-    @SerializedName("tipo") val type: String?,
-    @SerializedName("endereco") val address: AddressObject?
+    @SerialName("tipo") val type: String?,
+    @SerialName("endereco") val address: AddressObject?
 )
+@Serializable
 data class AddressObject(
-    @SerializedName("cidade") val city: String?,
-    @SerializedName("uf") val state: String?
+    @SerialName("cidade") val city: String?,
+    @SerialName("uf") val state: String?
 )
