@@ -21,7 +21,7 @@ class TrackingWorker(
     override suspend fun doWork(): Result {
         val notificationHelper = NotificationHelper(applicationContext)
         if (!isNetworkAvailable(applicationContext)) {
-            return Result.retry()
+            return Result.success()
         }
         val isFakeTest = inputData.getBoolean("is_fake_test", false)
         if (isFakeTest) {
@@ -47,8 +47,9 @@ class TrackingWorker(
                                 val response = repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
                                 val eventoMaisRecente = response?.events?.firstOrNull()
                                 val statusNovo = eventoMaisRecente?.status
+                                val dataHoraNovo = "${eventoMaisRecente?.date ?: ""} ${eventoMaisRecente?.time ?: ""}".trim()
 
-                                if (statusNovo != null && statusNovo != encomenda.lastStatus) {
+                                if (statusNovo != null && (statusNovo != encomenda.lastStatus || dataHoraNovo != encomenda.lastDate)) {
                                     val nomeExibicao = if (encomenda.description.isNotBlank() && encomenda.description != "Encomenda Sem Nome") {
                                         encomenda.description
                                     } else {
@@ -56,7 +57,7 @@ class TrackingWorker(
                                     }
                                     val updatedItem = encomenda.copy(
                                         lastStatus = statusNovo,
-                                        lastDate = "${eventoMaisRecente.date ?: ""} ${eventoMaisRecente.time ?: ""}".trim(),
+                                        lastDate = dataHoraNovo,
                                         savedAt = System.currentTimeMillis()
                                     )
                                     dao.insertTracking(updatedItem)

@@ -30,8 +30,8 @@ class TrackingRepository(private val context: Context) {
                 return cookieStore[url.host] ?: listOf()
             }
         })
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
     private val gson = Gson()
@@ -113,7 +113,7 @@ class TrackingRepository(private val context: Context) {
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
             } catch (e: Exception) {
                 e.printStackTrace()
-                null
+                throw e
             }
         }
     }
@@ -181,7 +181,7 @@ class TrackingRepository(private val context: Context) {
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
 
             } catch (e: Exception) {
-                null
+                throw e
             }
         }
     }
@@ -248,7 +248,7 @@ class TrackingRepository(private val context: Context) {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                null
+                throw e
             }
         }
     }
@@ -303,7 +303,9 @@ class TrackingRepository(private val context: Context) {
                     TrackingEvent(status = item.select(".progress-title").text().trim().ifBlank { "Status" }, date = parts.getOrNull(0) ?: "", time = parts.getOrNull(1) ?: "", location = item.select(".progress-desc").text().trim().ifBlank { "Em trânsito" }, subStatus = null)
                 }.toMutableList()
                 return@withContext TrackingResponse(tracking_code = code, events = events)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                throw e
+            }
         }
     }
 
@@ -323,7 +325,9 @@ class TrackingRepository(private val context: Context) {
                     TrackingEvent(status=stat, date=d, time=parts.getOrElse(1){""}, location=loc, subStatus=null)
                 }
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                throw e
+            }
         }
     }
 
@@ -340,7 +344,9 @@ class TrackingRepository(private val context: Context) {
                     TrackingEvent(status=it.title?:"", date=d, time=p[1].take(5), location=it.fromLocation?:"", subStatus=null)
                 }?.reversed() ?: return@withContext null
                 return@withContext TrackingResponse(tracking_code = code, events = evs)
-            } catch(e:Exception){ null }
+            } catch(e:Exception){
+                throw e
+            }
         }
     }
 }
