@@ -1,8 +1,10 @@
 package com.kaeru.app.tracking
 
 import android.content.Context
+import android.util.Log
 import com.kaeru.app.R
 import com.kaeru.app.data.scraper.LinketrackWebViewScraper
+import com.kaeru.app.data.scraper.LoggiScraper
 import com.kaeru.app.tracking.utils.TrackingCarrier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -274,27 +276,101 @@ class TrackingRepository(private val context: Context) {
         val scraper = LoggiScraper(context)
         val html = scraper.fetchHtml(code)
         if (html.isNullOrBlank()) return null
+
+        // --- PRINT FRACIONADO PARA BURLAR O LIMITE DO LOGCAT ---
+        val maxLogSize = 3000
+        for (i in 0..html.length / maxLogSize) {
+            val start = i * maxLogSize
+            var end = (i + 1) * maxLogSize
+            end = if (end > html.length) html.length else end
+            Log.d("LOGGI_HTML_COMPLETO", html.substring(start, end))
+        }
+        // -------------------------------------------------------
+
         return parseLoggiHtml(html, code)
     }
 
     private fun parseLoggiHtml(html: String, code: String): TrackingResponse? {
         val events = mutableListOf<TrackingEvent>()
         try {
-            val doc = Jsoup.parse(html)
-            val steps = doc.select("div.MuiStep-root")
-            if (steps.isEmpty()) return null
-            for (step in steps) {
-                val dateRaw = step.select(".MuiTypography-overline").text().trim()
-                var status = step.select(".MuiTypography-subtitleLarge").text().trim()
-                if (status.isEmpty()) status = step.select(".MuiTypography-subtitleMedium").text().trim()
-                var location = step.select(".MuiTypography-bodyTextMedium").text().trim()
-                if (location.startsWith("-")) location = location.removePrefix("-").trim()
-                if (status.isNotEmpty()) {
-                    events.add(TrackingEvent(status = status, date = dateRaw, time = "", location = location.ifBlank { "Loggi" }, subStatus = null))
+            // 1. Procuramos pela palavra history (com escape ou sem escape)
+            var startIndex = html.indexOf("""\"history\":""")
+            if (startIndex == -1) {
+                startIndex = html.indexOf(""""history":""")
+            }
+
+            if (startIndex == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Não achou a palavra history no HTML.")
+                return null
+            }
+
+            // 2. Acha o exato ponto onde a lista começa '['
+            val startBracket = html.indexOf('[', startIndex)
+            if (startBracket == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Achou history, mas não achou a lista.")
+                return null
+            }
+
+            // 3. Algoritmo Contador para achar o ']' final perfeitamente
+            var bracketCount = 0
+            var endBracket = -1
+
+            for (i in startBracket until html.length) {
+                if (html[i] == '[') bracketCount++
+                else if (html[i] == ']') {
+                    bracketCount--
+                    if (bracketCount == 0) {
+                        endBracket = i
+                        break
+                    }
                 }
             }
-        } catch (e: Exception) { e.printStackTrace() }
-        if (events.isEmpty()) return null
+
+            if (endBracket == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Não conseguiu achar o fechamento do JSON.")
+                return null
+            }
+
+            // 4. Recorta o Array e LIMPA as barras de escape (\") para aspas normais (")
+            val rawJsonArray = html.substring(startBracket, endBracket + 1)
+            val cleanJsonArray = rawJsonArray.replace("\\\"", "\"")
+
+            Log.d("LOGGI_DEBUG", "✅ JSON Limpo e Extraído: $cleanJsonArray")
+
+            // 5. Agora o parser entende o JSON perfeito!
+            val jsonElements = org.json.JSONArray(cleanJsonArray)
+
+            for (i in 0 until jsonElements.length()) {
+                val item = jsonElements.getJSONObject(i)
+
+                val rawDate = item.optString("date", "")
+                var title = item.optString("title", "Atualização")
+                if (title == "null") title = "Atualização"
+
+                var desc = item.optString("description", "Loggi")
+                if (desc == "null" || desc.isBlank()) desc = "Loggi"
+
+                events.add(
+                    TrackingEvent(
+                        status = title.trim(),
+                        date = rawDate.trim(),
+                        time = "",
+                        location = desc.replace("-", "").trim(),
+                        subStatus = null
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("LOGGI_DEBUG", "❌ Erro ao processar JSON: ${e.message}")
+            e.printStackTrace()
+        }
+
+        if (events.isEmpty()) {
+            Log.w("LOGGI_DEBUG", "⚠️ A lista de eventos ficou vazia.")
+            return null
+        }
+
+        Log.d("LOGGI_DEBUG", "🎉 Sucesso! Enviando ${events.size} eventos para a tela.")
         return TrackingResponse(tracking_code = code, events = events)
     }
 
