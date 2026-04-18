@@ -270,19 +270,18 @@ class TrackingViewModel(
                 .build()
 
             val periodicRequest = PeriodicWorkRequestBuilder<TrackingWorker>(
-                15, TimeUnit.MINUTES
+                1, TimeUnit.HOURS
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(
-                    BackoffPolicy.LINEAR,
-                    WorkRequest.MIN_BACKOFF_MILLIS,
-                    TimeUnit.MILLISECONDS
+                    BackoffPolicy.EXPONENTIAL,
+                    15, TimeUnit.MINUTES
                 )
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 "KaeruTrackingWorker",
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 periodicRequest
             )
         }
