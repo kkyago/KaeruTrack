@@ -1,9 +1,10 @@
 package com.kaeru.app.tracking
 
 import android.content.Context
-import com.google.gson.Gson
+import android.util.Log
 import com.kaeru.app.R
 import com.kaeru.app.data.scraper.LinketrackWebViewScraper
+import com.kaeru.app.data.scraper.LoggiScraper
 import com.kaeru.app.tracking.utils.TrackingCarrier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,6 +18,7 @@ import org.jsoup.Jsoup
 import okhttp3.CookieJar
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
+import kotlinx.serialization.json.Json
 
 class TrackingRepository(private val context: Context) {
 
@@ -30,15 +32,18 @@ class TrackingRepository(private val context: Context) {
                 return cookieStore[url.host] ?: listOf()
             }
         })
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
         .build()
-
-    private val gson = Gson()
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
 
     fun isCarrierSupported(code: String): Boolean {
         return TrackingCarrier.fromCode(code) != TrackingCarrier.UNKNOWN
     }
+
     suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto", cpf: String? = null): TrackingResponse? {
         val cleanCode = code.trim().uppercase()
 
@@ -91,7 +96,8 @@ class TrackingRepository(private val context: Context) {
                     .build()
                 val response = client.newCall(request).execute()
                 val bodyString = response.body?.string() ?: return@withContext null
-                val rawData = gson.fromJson(bodyString, SpxResponse::class.java)
+                val rawData = jsonParser.decodeFromString<SpxResponse>(bodyString)
+
                 val records = rawData.data?.slsTrackingInfo?.records ?: return@withContext null
                 val uiEvents = records.map { record ->
                     val dateObj = java.util.Date(record.actualTime * 1000L)
@@ -113,7 +119,7 @@ class TrackingRepository(private val context: Context) {
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
             } catch (e: Exception) {
                 e.printStackTrace()
-                null
+                throw e
             }
         }
     }
@@ -148,8 +154,10 @@ class TrackingRepository(private val context: Context) {
                     .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .build()
                 val response = client.newCall(request).execute()
-                val rawData = gson.fromJson(response.body?.string(), JTExpressResponse::class.java)
-                if (rawData?.success != true || rawData.data?.details == null) {
+                val bodyString = response.body?.string() ?: return@withContext null
+                val rawData = jsonParser.decodeFromString<JTExpressResponse>(bodyString)
+
+                if (rawData.success != true || rawData.data?.details == null) {
                     return@withContext null
                 }
                 val uiEvents = rawData.data.details.map { detail ->
@@ -181,7 +189,7 @@ class TrackingRepository(private val context: Context) {
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
 
             } catch (e: Exception) {
-                null
+                throw e
             }
         }
     }
@@ -211,7 +219,8 @@ class TrackingRepository(private val context: Context) {
                 if (body.isNullOrBlank()) {
                     return@withContext null
                 }
-                val rawData = gson.fromJson(body, TotalExpressResponse::class.java)
+                val rawData = jsonParser.decodeFromString<TotalExpressResponse>(body)
+
                 val layouts = rawData.data?.layouts
                 if (layouts.isNullOrEmpty()) {
                     return@withContext null
@@ -248,7 +257,7 @@ class TrackingRepository(private val context: Context) {
 
             } catch (e: Exception) {
                 e.printStackTrace()
-                null
+                throw e
             }
         }
     }
@@ -267,27 +276,101 @@ class TrackingRepository(private val context: Context) {
         val scraper = LoggiScraper(context)
         val html = scraper.fetchHtml(code)
         if (html.isNullOrBlank()) return null
+
+        // --- PRINT FRACIONADO PARA BURLAR O LIMITE DO LOGCAT ---
+        val maxLogSize = 3000
+        for (i in 0..html.length / maxLogSize) {
+            val start = i * maxLogSize
+            var end = (i + 1) * maxLogSize
+            end = if (end > html.length) html.length else end
+            Log.d("LOGGI_HTML_COMPLETO", html.substring(start, end))
+        }
+        // -------------------------------------------------------
+
         return parseLoggiHtml(html, code)
     }
 
     private fun parseLoggiHtml(html: String, code: String): TrackingResponse? {
         val events = mutableListOf<TrackingEvent>()
         try {
-            val doc = Jsoup.parse(html)
-            val steps = doc.select("div.MuiStep-root")
-            if (steps.isEmpty()) return null
-            for (step in steps) {
-                val dateRaw = step.select(".MuiTypography-overline").text().trim()
-                var status = step.select(".MuiTypography-subtitleLarge").text().trim()
-                if (status.isEmpty()) status = step.select(".MuiTypography-subtitleMedium").text().trim()
-                var location = step.select(".MuiTypography-bodyTextMedium").text().trim()
-                if (location.startsWith("-")) location = location.removePrefix("-").trim()
-                if (status.isNotEmpty()) {
-                    events.add(TrackingEvent(status = status, date = dateRaw, time = "", location = location.ifBlank { "Loggi" }, subStatus = null))
+            // 1. Procuramos pela palavra history (com escape ou sem escape)
+            var startIndex = html.indexOf("""\"history\":""")
+            if (startIndex == -1) {
+                startIndex = html.indexOf(""""history":""")
+            }
+
+            if (startIndex == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Não achou a palavra history no HTML.")
+                return null
+            }
+
+            // 2. Acha o exato ponto onde a lista começa '['
+            val startBracket = html.indexOf('[', startIndex)
+            if (startBracket == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Achou history, mas não achou a lista.")
+                return null
+            }
+
+            // 3. Algoritmo Contador para achar o ']' final perfeitamente
+            var bracketCount = 0
+            var endBracket = -1
+
+            for (i in startBracket until html.length) {
+                if (html[i] == '[') bracketCount++
+                else if (html[i] == ']') {
+                    bracketCount--
+                    if (bracketCount == 0) {
+                        endBracket = i
+                        break
+                    }
                 }
             }
-        } catch (e: Exception) { e.printStackTrace() }
-        if (events.isEmpty()) return null
+
+            if (endBracket == -1) {
+                Log.e("LOGGI_DEBUG", "❌ Não conseguiu achar o fechamento do JSON.")
+                return null
+            }
+
+            // 4. Recorta o Array e LIMPA as barras de escape (\") para aspas normais (")
+            val rawJsonArray = html.substring(startBracket, endBracket + 1)
+            val cleanJsonArray = rawJsonArray.replace("\\\"", "\"")
+
+            Log.d("LOGGI_DEBUG", "✅ JSON Limpo e Extraído: $cleanJsonArray")
+
+            // 5. Agora o parser entende o JSON perfeito!
+            val jsonElements = org.json.JSONArray(cleanJsonArray)
+
+            for (i in 0 until jsonElements.length()) {
+                val item = jsonElements.getJSONObject(i)
+
+                val rawDate = item.optString("date", "")
+                var title = item.optString("title", "Atualização")
+                if (title == "null") title = "Atualização"
+
+                var desc = item.optString("description", "Loggi")
+                if (desc == "null" || desc.isBlank()) desc = "Loggi"
+
+                events.add(
+                    TrackingEvent(
+                        status = title.trim(),
+                        date = rawDate.trim(),
+                        time = "",
+                        location = desc.replace("-", "").trim(),
+                        subStatus = null
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("LOGGI_DEBUG", "❌ Erro ao processar JSON: ${e.message}")
+            e.printStackTrace()
+        }
+
+        if (events.isEmpty()) {
+            Log.w("LOGGI_DEBUG", "⚠️ A lista de eventos ficou vazia.")
+            return null
+        }
+
+        Log.d("LOGGI_DEBUG", "🎉 Sucesso! Enviando ${events.size} eventos para a tela.")
         return TrackingResponse(tracking_code = code, events = events)
     }
 
@@ -303,7 +386,9 @@ class TrackingRepository(private val context: Context) {
                     TrackingEvent(status = item.select(".progress-title").text().trim().ifBlank { "Status" }, date = parts.getOrNull(0) ?: "", time = parts.getOrNull(1) ?: "", location = item.select(".progress-desc").text().trim().ifBlank { "Em trânsito" }, subStatus = null)
                 }.toMutableList()
                 return@withContext TrackingResponse(tracking_code = code, events = events)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                throw e
+            }
         }
     }
 
@@ -312,7 +397,9 @@ class TrackingRepository(private val context: Context) {
             try {
                 val request = Request.Builder().url("https://global.cainiao.com/global/detail.json?mailNos=$code&lang=pt-BR").build()
                 val response = client.newCall(request).execute()
-                val rawData = gson.fromJson(response.body?.string(), CainiaoResponse::class.java)
+                val bodyString = response.body?.string() ?: return@withContext null
+                val rawData = jsonParser.decodeFromString<CainiaoResponse>(bodyString)
+
                 val packageData = rawData.modules?.firstOrNull() ?: return@withContext null
                 val uiEvents = packageData.details?.map { detail ->
                     val parts = (detail.dateString ?: "").split(" ")
@@ -323,7 +410,9 @@ class TrackingRepository(private val context: Context) {
                     TrackingEvent(status=stat, date=d, time=parts.getOrElse(1){""}, location=loc, subStatus=null)
                 }
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
-            } catch (e: Exception) { null }
+            } catch (e: Exception) {
+                throw e
+            }
         }
     }
 
@@ -333,14 +422,18 @@ class TrackingRepository(private val context: Context) {
                 val body = """{"operationName":"searchParcel","variables":{"tracker":{"trackingCode":"$code","type":"melhorenvio"}},"query":"mutation searchParcel(${"$"}tracker:TrackerSearchInput!){result:searchParcel(tracker:${"$"}tracker){trackingEvents{title createdAt from description}}}"}""".toRequestBody("application/json".toMediaType())
                 val req = Request.Builder().url("https://melhor-rastreio-api.melhorrastreio.com.br/graphql").post(body).header("User-Agent","Mozilla/5.0").build()
                 val res = client.newCall(req).execute()
-                val data = gson.fromJson(res.body?.string(), MelhorEnvioResponse::class.java)
-                val evs = data?.data?.result?.events?.map {
+                val bodyString = res.body?.string() ?: return@withContext null
+                val data = jsonParser.decodeFromString<MelhorEnvioResponse>(bodyString)
+
+                val evs = data.data?.result?.events?.map {
                     val iso = it.createdAt?:""; val p = if(iso.contains("T")) iso.split("T") else listOf(iso,"")
                     val d = try{val s=p[0].split("-"); "${s[2]}/${s[1]}/${s[0]}"}catch(e:Exception){p[0]}
                     TrackingEvent(status=it.title?:"", date=d, time=p[1].take(5), location=it.fromLocation?:"", subStatus=null)
                 }?.reversed() ?: return@withContext null
                 return@withContext TrackingResponse(tracking_code = code, events = evs)
-            } catch(e:Exception){ null }
+            } catch(e:Exception){
+                throw e
+            }
         }
     }
 }

@@ -1,20 +1,24 @@
 package com.kaeru.app.tracking
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class JTExpressResponse(
-    @SerializedName("data") val data: JTExpressData?,
-    @SerializedName("succ") val success: Boolean?,
-    @SerializedName("msg") val message: String?
+    @SerialName("data") val data: JTExpressData?,
+    @SerialName("succ") val success: Boolean?,
+    @SerialName("msg") val message: String?
 )
 
+@Serializable
 data class JTExpressData(
-    @SerializedName("keyword") val code: String?,
-    @SerializedName("details") val details: List<JTExpressDetail>?
+    @SerialName("keyword") val code: String?,
+    @SerialName("details") val details: List<JTExpressDetail>?
 )
 
+@Serializable
 data class JTExpressDetail(
-    @SerializedName("scanTime") val dateString: String?,
-    @SerializedName("status") val statusTitle: String?,
-    @SerializedName("customerTracking") val description: String?
+    @SerialName("scanTime") val dateString: String?,
+    @SerialName("status") val statusTitle: String?,
+    @SerialName("customerTracking") val description: String?
 )

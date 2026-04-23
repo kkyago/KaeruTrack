@@ -1,18 +1,18 @@
 package com.kaeru.app.data.scraper
 
-import android.app.Activity
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.TimeoutException
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private class LinketrackHtmlInterface(private val onHtmlReceived: (String?) -> Unit) {
     @JavascriptInterface
@@ -36,46 +36,52 @@ class LinketrackWebViewScraper(private val context: Context) {
     suspend fun fetchHtml(trackingCode: String): String? {
         return suspendCancellableCoroutine { continuation ->
             var hasResumed = false
+            var webView: WebView? = null
+            val handler = Handler(Looper.getMainLooper())
+            var checkRunnable: Runnable? = null
+            var timeoutRunnable: Runnable? = null
 
-            fun safeResume(result: String?) {
-                if (!hasResumed && continuation.isActive) {
-                    hasResumed = true
-                    continuation.resume(result)
+            fun cleanup() {
+                handler.post {
+                    checkRunnable?.let { handler.removeCallbacks(it) }
+                    timeoutRunnable?.let { handler.removeCallbacks(it) }
+                    webView?.apply {
+                        stopLoading()
+                        clearHistory()
+                        removeAllViews()
+                        destroy()
+                    }
+                    webView = null
                 }
             }
 
-            Handler(Looper.getMainLooper()).post {
+            continuation.invokeOnCancellation {
+                cleanup()
+            }
+
+            handler.post {
                 try {
-                    val activity = context as? Activity
-                    val rootView = activity?.window?.decorView?.findViewById<ViewGroup>(android.R.id.content)
+                    webView = WebView(context.applicationContext).apply {
+                        val cookieManager = CookieManager.getInstance()
+                        cookieManager.setAcceptCookie(true)
+                        cookieManager.setAcceptThirdPartyCookies(this, true)
 
-                    val webView = WebView(context)
-
-                    val params = ViewGroup.LayoutParams(1, 1)
-                    webView.layoutParams = params
-                    webView.alpha = 0.01f
-                    rootView?.addView(webView)
-
-                    val cookieManager = CookieManager.getInstance()
-                    cookieManager.setAcceptCookie(true)
-                    cookieManager.setAcceptThirdPartyCookies(webView, true)
-
-                    webView.settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
-                        useWideViewPort = true
-                        loadWithOverviewMode = true
-                        cacheMode = WebSettings.LOAD_DEFAULT
-                        userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
-                    }
-                    webView.addJavascriptInterface(LinketrackHtmlInterface {
-                        Handler(Looper.getMainLooper()).post {
-                            rootView?.removeView(webView)
-                            webView.destroy()
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            databaseEnabled = true
+                            cacheMode = WebSettings.LOAD_DEFAULT
+                            userAgentString = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
                         }
-                        safeResume(it)
-                    }, "LinketrackInterface")
+
+                        addJavascriptInterface(LinketrackHtmlInterface { html ->
+                            if (!hasResumed && continuation.isActive) {
+                                hasResumed = true
+                                cleanup()
+                                continuation.resume(html)
+                            }
+                        }, "LinketrackInterface")
+                    }
 
                     val jsCode = """
                         (function() {
@@ -87,46 +93,49 @@ class LinketrackWebViewScraper(private val context: Context) {
                             if (items.length > 0) {
                                 window.hasSentData = true;
                                 window.LinketrackInterface.success(document.documentElement.outerHTML);
-                            } else if (bodyText.includes("Objeto não encontrado") || bodyText.includes("Código inválido")) {
+                            } else if (bodyText.includes("Objeto não encontrado") || bodyText.includes("Código inválido") || bodyText.includes("Aguardando postagem pelo remetente")) {
                                 window.hasSentData = true;
                                 window.LinketrackInterface.notFound();
                             }
                         })();
                     """.trimIndent()
 
-                    webView.webViewClient = object : WebViewClient() {
+                    webView?.webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             view?.evaluateJavascript(jsCode, null)
                         }
                     }
+
                     val url = "https://linketrack.com/track?codigo=$trackingCode"
                     val headers = mapOf("Referer" to "https://www.google.com/")
-                    webView.loadUrl(url, headers)
-                    val handler = Handler(Looper.getMainLooper())
-                    val runnable = object : Runnable {
+                    webView?.loadUrl(url, headers)
+
+                    checkRunnable = object : Runnable {
                         var count = 0
                         override fun run() {
-                            if (hasResumed || count > 20) return
-                            webView.evaluateJavascript(jsCode, null)
+                            if (hasResumed || count > 15) return
+                            webView?.evaluateJavascript(jsCode, null)
                             count++
                             handler.postDelayed(this, 2000)
                         }
-                    }
-                    handler.postDelayed(runnable, 3000)
+                    }.also { handler.postDelayed(it, 3000) }
 
-                    handler.postDelayed({
-                        if (!hasResumed) {
-                            Handler(Looper.getMainLooper()).post {
-                                rootView?.removeView(webView)
-                                webView.destroy()
-                            }
-                            Log.e("LINKETRACK", "timeout")
-                            safeResume(null)
+                    timeoutRunnable = Runnable {
+                        if (!hasResumed && continuation.isActive) {
+                            hasResumed = true
+                            cleanup()
+                            Log.e("LINKETRACK", "Timeout da WebView")
+                            continuation.resumeWithException(TimeoutException("Linketrack WebView demorou muito para responder"))
                         }
-                    }, 15000)
+                    }.also { handler.postDelayed(it, 30000) }
+
                 } catch (e: Exception) {
-                    Log.e("LINKETRACK", "erro: ${e.message}")
-                    safeResume(null)
+                    Log.e("LINKETRACK", "erro crítico: ${e.message}")
+                    if (!hasResumed && continuation.isActive) {
+                        hasResumed = true
+                        cleanup()
+                        continuation.resumeWithException(e)
+                    }
                 }
             }
         }

@@ -5,14 +5,20 @@ import android.content.Intent
 import android.net.Uri
 import com.kaeru.app.BuildConfig
 import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 
 class UpdateManager {
+    private val jsonParser = Json {
+        ignoreUnknownKeys = true
+    }
 
     private val api: GithubApi by lazy {
+        val contentType = "application/json".toMediaType()
         Retrofit.Builder()
             .baseUrl("https://api.github.com/")
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(jsonParser.asConverterFactory(contentType))
             .build()
             .create(GithubApi::class.java)
     }

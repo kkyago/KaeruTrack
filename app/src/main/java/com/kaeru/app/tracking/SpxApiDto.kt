@@ -1,22 +1,28 @@
 package com.kaeru.app.tracking
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class SpxResponse(
-    @SerializedName("data") val data: SpxData?
+    @SerialName("data") val data: SpxData?
 )
+@Serializable
 data class SpxData(
-    @SerializedName("sls_tracking_info") val slsTrackingInfo: SpxTrackingInfo?
+    @SerialName("sls_tracking_info") val slsTrackingInfo: SpxTrackingInfo?
 )
+@Serializable
 data class SpxTrackingInfo(
-    @SerializedName("records") val records: List<SpxRecord>?
+    @SerialName("records") val records: List<SpxRecord>?
 )
+@Serializable
 data class SpxRecord(
-    @SerializedName("description") val description: String,
-    @SerializedName("buyer_description") val buyerDescription: String,
-    @SerializedName("actual_time") val actualTime: Long,
-    @SerializedName("milestone_name") val currentLocation: String,
+    @SerialName("description") val description: String,
+    @SerialName("buyer_description") val buyerDescription: String,
+    @SerialName("actual_time") val actualTime: Long,
+    @SerialName("milestone_name") val currentLocation: String,
 )
+@Serializable
 data class SpxLocation(
-    @SerializedName("milestone_name") val locationName: String?
+    @SerialName("milestone_name") val locationName: String?
 )

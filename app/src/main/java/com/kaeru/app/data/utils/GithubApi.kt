@@ -1,13 +1,15 @@
 package com.kaeru.app.data.utils
 
-import com.google.gson.annotations.SerializedName
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import retrofit2.http.GET
 
+@Serializable
 data class GithubRelease(
-    @SerializedName("tag_name") val tagName: String,
-    @SerializedName("html_url") val htmlUrl: String,
-    @SerializedName("body") val body: String,
-    @SerializedName("published_at") val releaseDate: String
+    @SerialName("tag_name") val tagName: String,
+    @SerialName("html_url") val htmlUrl: String,
+    @SerialName("body") val body: String,
+    @SerialName("published_at") val releaseDate: String
 )
 
 interface GithubApi {
