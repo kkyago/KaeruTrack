@@ -35,43 +35,47 @@ class TrackingWorker(
 
         try {
             val encomendasSalvas = dao.getAllTracking().first()
+            val encomendasPendentes = encomendasSalvas.filter { it.lastStatus?.isDeliveredStatus() != true }
 
-            for (encomenda in encomendasSalvas) {
-                val encomendasPendentes = encomendasSalvas.filter { it.lastStatus?.isDeliveredStatus() != true }
-                coroutineScope {
-                    val resultados = encomendasPendentes.mapIndexed { index, encomenda ->
-                        async {
-                            try {
-                                delay(index * 500L)
+            if (encomendasPendentes.isEmpty()) {
+                return Result.success()
+            }
 
-                                val response = repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
-                                val eventoMaisRecente = response?.events?.firstOrNull()
-                                val statusNovo = eventoMaisRecente?.status
-                                val dataHoraNovo = "${eventoMaisRecente?.date ?: ""} ${eventoMaisRecente?.time ?: ""}".trim()
+            coroutineScope {
+                val resultados = encomendasPendentes.mapIndexed { index, encomenda ->
+                    async {
+                        try {
+                            delay(index * 1000L)
 
-                                if (statusNovo != null && (statusNovo != encomenda.lastStatus || dataHoraNovo != encomenda.lastDate)) {
-                                    val nomeExibicao = if (encomenda.description.isNotBlank() && encomenda.description != "Encomenda Sem Nome") {
-                                        encomenda.description
-                                    } else {
-                                        encomenda.code
-                                    }
-                                    val updatedItem = encomenda.copy(
-                                        lastStatus = statusNovo,
-                                        lastDate = dataHoraNovo,
-                                        savedAt = System.currentTimeMillis()
-                                    )
-                                    dao.insertTracking(updatedItem)
-                                    notificationHelper.showNotification(nomeExibicao, encomenda.code, statusNovo)
+                            val response = repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
+                            val eventoMaisRecente = response?.events?.firstOrNull()
+                            val statusNovo = eventoMaisRecente?.status
+                            val dataHoraNovo = "${eventoMaisRecente?.date ?: ""} ${eventoMaisRecente?.time ?: ""}".trim()
+
+                            if (statusNovo != null && (statusNovo != encomenda.lastStatus || dataHoraNovo != encomenda.lastDate)) {
+                                val nomeExibicao = if (encomenda.description.isNotBlank() && encomenda.description != "Encomenda Sem Nome") {
+                                    encomenda.description
+                                } else {
+                                    encomenda.code
                                 }
-                                true
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                                false
+
+                                val updatedItem = encomenda.copy(
+                                    lastStatus = statusNovo,
+                                    lastDate = dataHoraNovo,
+                                    savedAt = System.currentTimeMillis()
+                                )
+                                dao.insertTracking(updatedItem)
+                                notificationHelper.showNotification(nomeExibicao, encomenda.code, statusNovo)
                             }
+                            true
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            false
                         }
-                    }.awaitAll()
-                    hasFailedRequests = resultados.contains(false)
-                }
+                    }
+                }.awaitAll()
+
+                hasFailedRequests = resultados.contains(false)
             }
             return if (hasFailedRequests) Result.retry() else Result.success()
         } catch (e: Exception) {
