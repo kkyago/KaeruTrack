@@ -41,6 +41,7 @@
 -dontwarn sun.misc.**
 -dontwarn javax.naming.**
 -dontwarn org.ietf.jgss.**
+-dontwarn com.google.re2j.**
 -keepclassmembers  interface * {
     @retrofit2.http.* <methods>;
 }
