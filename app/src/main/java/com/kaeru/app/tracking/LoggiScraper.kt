@@ -72,6 +72,11 @@ class LoggiScraper(private val context: Context) {
             handler.post {
                 try {
                     webView = WebView(context.applicationContext).apply {
+                        layoutParams = android.view.ViewGroup.LayoutParams(1080, 1920)
+
+                        resumeTimers()
+                        onResume()
+
                         val cookieManager = CookieManager.getInstance()
                         cookieManager.setAcceptCookie(true)
                         cookieManager.setAcceptThirdPartyCookies(this, true)
