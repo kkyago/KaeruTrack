@@ -13,6 +13,7 @@ import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import kotlinx.serialization.Serializable
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
@@ -32,6 +33,7 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
     }
 }
 
+@Serializable
 @Entity(tableName = "tracking_history")
 data class TrackingEntity(
     @PrimaryKey val code: String,
