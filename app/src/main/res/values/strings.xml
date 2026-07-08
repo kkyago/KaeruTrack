@@ -154,4 +154,7 @@
     <string name="source_code_label">View the repository on GitHub</string>
     <string name="license_label">GNU General Public License v3.0</string>
     <string name="source_code_info">Source code info</string>
+    <string name="sort_by_date_added">Date added</string>
+    <string name="sort_by_alphabetic">Name</string>
+    <string name="sort_by_last_updated">Date updated</string>
 </resources>

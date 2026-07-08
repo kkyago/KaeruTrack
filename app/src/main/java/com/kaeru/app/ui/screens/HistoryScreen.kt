@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,7 +42,13 @@ import com.kaeru.app.ui.components.AnimatedFilterChip
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.ColorFilter
 import com.kaeru.app.tracking.utils.isDeliveredStatus
+import com.kaeru.app.tracking.utils.rememberBooleanPreference
+import com.kaeru.app.tracking.utils.rememberEnumPreference
+import com.kaeru.app.ui.components.SortHeader
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import com.kaeru.app.ui.components.LibrarySearchHeader
 
+enum class OrderType { DATE_ADDED, ALPHABETIC, LAST_UPDATED }
 @Composable
 fun HistoryScreen(
     viewModel: TrackingViewModel,
@@ -50,18 +57,52 @@ fun HistoryScreen(
     onNavigateToResult: (String) -> Unit
 ) {
     val history by viewModel.historyList.collectAsState()
+    var sortType by rememberEnumPreference("PREF_SORT_TYPE", OrderType.LAST_UPDATED)
+    var sortDescending by rememberBooleanPreference("PREF_SORT_DESC", true)
     val backgroundColor = MaterialTheme.colorScheme.background
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val onBackground = MaterialTheme.colorScheme.onBackground
-    val filteredHistory = remember(history, currentFilter) {
-        when (currentFilter) {
-            TrackingFilter.IN_TRANSIT -> history.filter {
-                !it.lastStatus.isDeliveredStatus()
-            }
-            TrackingFilter.DELIVERED -> history.filter {
-                it.lastStatus.isDeliveredStatus()
-            }
+    val filteredHistory = remember(history, currentFilter, sortType, sortDescending, searchQuery) {
+        val statusFiltered = when (currentFilter) {
+            TrackingFilter.IN_TRANSIT -> history.filter { !it.lastStatus.isDeliveredStatus() }
+            TrackingFilter.DELIVERED -> history.filter { it.lastStatus.isDeliveredStatus() }
             TrackingFilter.ALL -> history
+        }
+
+        val searchFiltered = if (searchQuery.isNotBlank()) {
+            statusFiltered.filter {
+                it.description.contains(searchQuery, ignoreCase = true) ||
+                        it.code.contains(searchQuery, ignoreCase = true)
+            }
+        } else {
+            statusFiltered
+        }
+
+        when (sortType) {
+            OrderType.ALPHABETIC -> {
+                if (sortDescending) {
+                    searchFiltered.sortedByDescending { it.description.ifBlank { it.code }.lowercase() }
+                } else {
+                    searchFiltered.sortedBy { it.description.ifBlank { it.code }.lowercase() }
+                }
+            }
+            OrderType.DATE_ADDED -> {
+                if (sortDescending) {
+                    searchFiltered.sortedByDescending { it.savedAt }
+                } else {
+                    searchFiltered.sortedBy { it.savedAt }
+                }
+            }
+            OrderType.LAST_UPDATED -> {
+                if (sortDescending) {
+                    searchFiltered
+                } else {
+                    searchFiltered.reversed()
+                }
+            }
         }
     }
     val coroutineScope = rememberCoroutineScope()
@@ -109,6 +150,45 @@ fun HistoryScreen(
                             label = stringResource(R.string.all_label),
                             icon = Icons.Default.CheckCircle
                         )
+                    }
+                    LibrarySearchHeader(
+                        isSearchActive = isSearchActive,
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { searchQuery = it },
+                        onBack = {
+                            isSearchActive = false
+                            searchQuery = ""
+                        },
+                        keyboardController = keyboardController,
+                        modifier = Modifier.padding(bottom = 0.dp)
+                    ) {
+                        SortHeader(
+                            sortType = sortType,
+                            sortDescending = sortDescending,
+                            onSortTypeChange = { sortType = it },
+                            onSortDescendingChange = { sortDescending = it },
+                            sortTypeText = { type ->
+                                when (type) {
+                                    OrderType.DATE_ADDED -> R.string.sort_by_date_added
+                                    OrderType.ALPHABETIC -> R.string.sort_by_alphabetic
+                                    OrderType.LAST_UPDATED -> R.string.sort_by_last_updated
+                                }
+                            }
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        IconButton(
+                            onClick = { isSearchActive = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Pesquisar Encomenda",
+                                tint = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
             }

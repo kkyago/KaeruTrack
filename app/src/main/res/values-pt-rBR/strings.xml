@@ -150,4 +150,7 @@
     <string name="license">Licença</string>
     <string name="source_code_label">Veja o repositório no GitHub</string>
     <string name="source_code_info">Informações sobre o código fonte</string>
+    <string name="sort_by_date_added">Quando adicionado</string>
+    <string name="sort_by_alphabetic">Nome</string>
+    <string name="sort_by_last_updated">Quando atualizado</string>
 </resources>
