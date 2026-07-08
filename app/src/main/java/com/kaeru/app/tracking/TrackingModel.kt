@@ -2,7 +2,8 @@ package com.kaeru.app.tracking
 
 data class TrackingResponse(
     val tracking_code: String?,
-    val events: List<TrackingEvent>?
+    val events: List<TrackingEvent>?,
+    var carrier: String = "Auto"
 )
 
 data class TrackingEvent(
