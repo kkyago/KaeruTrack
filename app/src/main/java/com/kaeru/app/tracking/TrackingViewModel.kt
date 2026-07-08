@@ -200,13 +200,16 @@ class TrackingViewModel(
         errorMessage = null
         trackingResult = null
         val cleanCode = code.trim()
-        if (carrier == "Auto" && !repository.isCarrierSupported(cleanCode)) {
+
+        val savedItem = historyList.value.find { it.code == cleanCode }
+        val resolvedCarrier = if (carrier == "Auto") savedItem?.carrier ?: "Auto" else carrier
+
+        if (resolvedCarrier == "Auto" && !repository.isCarrierSupported(cleanCode)) {
             isLoading = false
             return
         }
         isLoading = true
         searchJob = viewModelScope.launch {
-            val savedItem = historyList.value.find { it.code == cleanCode }
             var resolvedCpf = providedCpf
             if (cleanCode.length >= 10 && cleanCode.all { it.isDigit() }) {
                 val cpfToUse = providedCpf ?: savedItem?.cpf ?: currentCpf
@@ -220,10 +223,13 @@ class TrackingViewModel(
                 resolvedCpf = cpfToUse
                 currentCpf = cpfToUse
             }
+
             val isAlreadyDelivered = savedItem?.lastStatus?.isDeliveredStatus() ?: false
             if (isAlreadyDelivered) {
                 val cached = TrackingCache.get(cleanCode)
                 if (cached != null) {
+                    cached.carrier =
+                        resolvedCarrier
                     trackingResult = cached
                 } else {
                     trackingResult = TrackingResponse(
@@ -236,14 +242,24 @@ class TrackingViewModel(
                                 location = "Histórico Local",
                                 subStatus = null
                             )
-                        )
+                        ),
+                        carrier = resolvedCarrier
                     )
                 }
                 isLoading = false
                 return@launch
             }
-            val response = repository.trackPackage(cleanCode, forceRefresh = true, carrier = carrier, cpf = resolvedCpf)
+
+            val response = repository.trackPackage(
+                cleanCode,
+                forceRefresh = true,
+                carrier = resolvedCarrier,
+                cpf = resolvedCpf
+            )
+
             if (response != null) {
+                response.carrier =
+                    resolvedCarrier
                 trackingResult = response
                 updateHistoryStatusIfExists(cleanCode, response)
             } else {
@@ -320,7 +336,8 @@ class TrackingViewModel(
                 lastStatus = lastEvent?.status ?: "Aguardando",
                 lastDate = lastEvent?.date ?: "",
                 firstDate = firstEvent?.date ?: "",
-                cpf = currentCpf
+                cpf = currentCpf,
+                carrier = currentResult.carrier
             )
             dao.insertTracking(entity)
 
@@ -356,6 +373,7 @@ class TrackingViewModel(
             lastDate = "${latestEvent.date ?: ""} ${latestEvent.time ?: ""}".trim(),
             firstDate = "${firstEvent.date ?: ""} ${firstEvent.time ?: ""}".trim(),
             cpf = currentCpf ?: savedItem.cpf,
+            carrier = response.carrier
         )
         dao.insertTracking(updatedItem)
     }
