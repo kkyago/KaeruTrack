@@ -221,5 +221,6 @@ fun SettingsScreen(
 val SYSTEM_DEFAULT = "system"
 val LanguageCodeToName = mapOf(
     "en" to "English",
-    "pt-BR" to "Português (Brasil)"
+    "pt-BR" to "Português (Brasil)",
+    "es" to "Spanish"
 )
