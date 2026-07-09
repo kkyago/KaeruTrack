@@ -277,7 +277,6 @@ class TrackingRepository(private val context: Context) {
         val html = scraper.fetchHtml(code)
         if (html.isNullOrBlank()) return null
 
-        // --- PRINT FRACIONADO PARA BURLAR O LIMITE DO LOGCAT ---
         val maxLogSize = 3000
         for (i in 0..html.length / maxLogSize) {
             val start = i * maxLogSize
@@ -285,7 +284,6 @@ class TrackingRepository(private val context: Context) {
             end = if (end > html.length) html.length else end
             Log.d("LOGGI_HTML_COMPLETO", html.substring(start, end))
         }
-        // -------------------------------------------------------
 
         return parseLoggiHtml(html, code)
     }
@@ -293,7 +291,6 @@ class TrackingRepository(private val context: Context) {
     private fun parseLoggiHtml(html: String, code: String): TrackingResponse? {
         val events = mutableListOf<TrackingEvent>()
         try {
-            // 1. Procuramos pela palavra history (com escape ou sem escape)
             var startIndex = html.indexOf("""\"history\":""")
             if (startIndex == -1) {
                 startIndex = html.indexOf(""""history":""")
@@ -304,14 +301,12 @@ class TrackingRepository(private val context: Context) {
                 return null
             }
 
-            // 2. Acha o exato ponto onde a lista começa '['
             val startBracket = html.indexOf('[', startIndex)
             if (startBracket == -1) {
                 Log.e("LOGGI_DEBUG", "❌ Achou history, mas não achou a lista.")
                 return null
             }
 
-            // 3. Algoritmo Contador para achar o ']' final perfeitamente
             var bracketCount = 0
             var endBracket = -1
 
@@ -331,13 +326,11 @@ class TrackingRepository(private val context: Context) {
                 return null
             }
 
-            // 4. Recorta o Array e LIMPA as barras de escape (\") para aspas normais (")
             val rawJsonArray = html.substring(startBracket, endBracket + 1)
             val cleanJsonArray = rawJsonArray.replace("\\\"", "\"")
 
             Log.d("LOGGI_DEBUG", "✅ JSON Limpo e Extraído: $cleanJsonArray")
 
-            // 5. Agora o parser entende o JSON perfeito!
             val jsonElements = org.json.JSONArray(cleanJsonArray)
 
             for (i in 0 until jsonElements.length()) {

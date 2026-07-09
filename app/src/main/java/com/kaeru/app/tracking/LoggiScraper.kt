@@ -31,7 +31,6 @@ private class LoggiHtmlInterface(private val onHtmlReceived: (String?) -> Unit) 
 
     @JavascriptInterface
     fun log(msg: String) {
-        // Isso permite que o nosso script mande mensagens direto pro Logcat
         Log.d("LOGGI_DEBUG", "[JS_SPY] $msg")
     }
 }
@@ -92,7 +91,6 @@ class LoggiScraper(private val context: Context) {
                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         }
 
-                        // Captura erros internos da página (ex: API da Loggi deu erro 500)
                         webChromeClient = object : WebChromeClient() {
                             override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                                 Log.w("LOGGI_CONSOLE", "${consoleMessage?.message()} -- linha ${consoleMessage?.lineNumber()}")
@@ -109,8 +107,6 @@ class LoggiScraper(private val context: Context) {
                         }, "LoggiInterface")
                     }
 
-                    // Script super fofoqueiro para vermos exatamente o que ele acha
-                    // Script atualizado: Busca por conteúdo real, não por classes de CSS!
                     val jsCode = """
                         (function() {
                             if (window.hasSentData) return;
