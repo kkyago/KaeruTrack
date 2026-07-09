@@ -29,8 +29,8 @@ android {
         applicationId = "com.kaeru.app"
         minSdk = 29
         targetSdk = 36
-        versionCode = 60900
-        versionName = "6.9.0"
+        versionCode = 70000
+        versionName = "7.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
