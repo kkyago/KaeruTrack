@@ -153,4 +153,8 @@
     <string name="sort_by_date_added">Quando adicionado</string>
     <string name="sort_by_alphabetic">Nome</string>
     <string name="sort_by_last_updated">Quando atualizado</string>
+    <string name="unexpected_error">Erro inesperado!</string>
+    <string name="unexpected_error_description">O aplicativo encontrou uma falha inesperada. Envie o log abaixo para ajudar a consertar.</string>
+    <string name="restart_app">Reiniciar app</string>
+    <string name="send_logs">Enviar logs</string>
 </resources>

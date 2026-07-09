@@ -65,6 +65,7 @@ android {
 }
 
 dependencies {
+    implementation("com.jakewharton.timber:timber:5.0.1")
     implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("com.google.android.gms:play-services-auth:21.5.1")
