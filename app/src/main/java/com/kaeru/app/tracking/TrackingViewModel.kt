@@ -290,7 +290,7 @@ class TrackingViewModel(
                 .build()
 
             val periodicRequest = PeriodicWorkRequestBuilder<TrackingWorker>(
-                1, TimeUnit.HOURS
+                20, TimeUnit.MINUTES
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(
@@ -361,6 +361,11 @@ class TrackingViewModel(
     fun restoreTracking(item: TrackingEntity) {
         viewModelScope.launch {
             dao.insertTracking(item)
+        }
+    }
+    fun toggleNotifications(code: String, currentStatus: Boolean) {
+        viewModelScope.launch {
+            dao.updateNotificationStatus(code, !currentStatus)
         }
     }
     private suspend fun updateHistoryStatusIfExists(code: String, response: TrackingResponse) {

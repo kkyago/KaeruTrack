@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.LocalShipping
@@ -143,6 +145,17 @@ fun ResultScreen(
                     actions = {
                         val removedMessage = stringResource(R.string.removed)
                         if (isSaved) {
+                            val isNotifying = savedItem.notificationsEnabled
+
+                            IconButton(onClick = {
+                                viewModel.toggleNotifications(trackingCode, isNotifying)
+                            }) {
+                                Icon(
+                                    imageVector = if (isNotifying) Icons.Outlined.Notifications else Icons.Outlined.NotificationsOff,
+                                    contentDescription = null,
+                                    tint = if (isNotifying) primaryColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                )
+                            }
                             IconButton(onClick = { showEditDialog = true }) {
                                 Icon(Icons.Outlined.Edit, contentDescription = null)
                             }

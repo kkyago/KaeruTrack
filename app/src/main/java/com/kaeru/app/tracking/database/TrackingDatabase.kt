@@ -37,6 +37,11 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE tracking_history ADD COLUMN carrier TEXT NOT NULL DEFAULT 'Auto'")
     }
 }
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE tracking_history ADD COLUMN notificationsEnabled INTEGER NOT NULL DEFAULT 1")
+    }
+}
 
 @Serializable
 @Entity(tableName = "tracking_history")
@@ -48,8 +53,10 @@ data class TrackingEntity(
     val firstDate: String? = null,
     val savedAt: Long = System.currentTimeMillis(),
     val cpf: String? = null,
-    val carrier: String = "Auto"
+    val carrier: String = "Auto",
+    val notificationsEnabled: Boolean = true
 )
+
 @Dao
 interface TrackingDao {
     @Query("SELECT * FROM tracking_history ORDER BY savedAt DESC")
@@ -68,8 +75,10 @@ interface TrackingDao {
     suspend fun getCpf(code: String): String?
     @Query("SELECT * FROM tracking_history WHERE code = :code")
     suspend fun getTrackingById(code: String): TrackingEntity?
+    @Query("UPDATE tracking_history SET notificationsEnabled = :enabled WHERE code = :code")
+    suspend fun updateNotificationStatus(code: String, enabled: Boolean)
 }
-@Database(entities = [TrackingEntity::class, BackupLog::class], version = 5, exportSchema = false)
+@Database(entities = [TrackingEntity::class, BackupLog::class], version = 6, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun trackingDao(): TrackingDao
@@ -84,7 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "kaeru_track_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance
