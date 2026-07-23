@@ -1,5 +1,6 @@
 package com.kaeru.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
@@ -47,6 +49,19 @@ import com.kaeru.app.tracking.utils.rememberEnumPreference
 import com.kaeru.app.ui.components.SortHeader
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.kaeru.app.ui.components.LibrarySearchHeader
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material.icons.filled.Check
 
 enum class OrderType { DATE_ADDED, ALPHABETIC, LAST_UPDATED }
 @Composable
@@ -108,6 +123,30 @@ fun HistoryScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val isSwipeEnabled by viewModel.isSwipeToDeleteEnabled.collectAsState()
+    val selectedPackages by viewModel.selectedPackages.collectAsState()
+    val isSelectionMode = selectedPackages.isNotEmpty()
+
+    BackHandler(enabled = isSelectionMode) {
+        viewModel.clearSelection()
+    }
+
+    val deletedOrder = stringResource(R.string.deleted_order)
+    val undoAction = stringResource(R.string.undo_action)
+
+    LaunchedEffect(Unit) {
+        viewModel.undoDeleteEvent.collect { deletedItems ->
+            if (deletedItems.isNotEmpty()) {
+                val result = snackbarHostState.showSnackbar(
+                    message = deletedOrder,
+                    actionLabel = undoAction,
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    viewModel.restorePackages(deletedItems)
+                }
+            }
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -244,9 +283,21 @@ fun HistoryScreen(
                         backgroundContent = { SwipeToDeleteIcon(dismissState) },
                         modifier = Modifier.animateItem()
                     ) {
+                        val isSelected = selectedPackages.contains(item.code)
                         HistoryCardNew(
                             item = item,
-                            onClick = { onNavigateToResult(item.code) }
+                            isSelected = isSelected,
+                            isSelectionMode = isSelectionMode,
+                            onClick = {
+                                if (isSelectionMode) {
+                                    viewModel.togglePackageSelection(item.code)
+                                } else {
+                                    onNavigateToResult(item.code)
+                                }
+                            },
+                            onLongClick = {
+                                viewModel.togglePackageSelection(item.code)
+                            }
                         )
                     }
                 }
@@ -259,7 +310,10 @@ fun HistoryScreen(
 @Composable
 fun HistoryCardNew(
     item: TrackingEntity,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    onLongClick: () -> Unit = {}
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val cardColor = MaterialTheme.colorScheme.surfaceContainerLow
@@ -294,14 +348,25 @@ fun HistoryCardNew(
     }
     val dynamicShape = expressiveShapes[shapeIndex].toShape()
     var showCalendar by remember { mutableStateOf(false) }
+    val selectionProgress by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = tween(durationMillis = 350, easing = FastOutSlowInEasing),
+        label = "selectionProgress"
+    )
 
     Card(
-        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f)
         ),
-        modifier = Modifier.fillMaxWidth()
+        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -312,16 +377,45 @@ fun HistoryCardNew(
             ) {
                 Surface(
                     shape = dynamicShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    color = primaryColor.copy(alpha = 0.1f),
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_package_outlined),
-                            contentDescription = null,
-                            tint = primaryColor,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .drawBehind {
+                                drawCircle(
+                                    color = primaryColor,
+                                    radius = size.width * selectionProgress,
+                                    center = center
+                                )
+                            }
+                    ) {
+                        AnimatedContent(
+                            targetState = isSelected,
+                            transitionSpec = {
+                                (scaleIn(tween(250)) + fadeIn(tween(250))) togetherWith
+                                        (scaleOut(tween(250)) + fadeOut(tween(250)))
+                            },
+                            label = "iconTransition"
+                        ) { selected ->
+                            if (selected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selecionado",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_package_outlined),
+                                    contentDescription = null,
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -352,9 +446,7 @@ fun HistoryCardNew(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            showCalendar = true
-                        }
+                        .then(if (isSelectionMode) Modifier else Modifier.clickable { showCalendar = true })
                         .padding(4.dp)
                 ) {
                     Surface(

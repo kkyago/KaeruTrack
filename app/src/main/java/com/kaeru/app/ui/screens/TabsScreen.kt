@@ -188,6 +188,8 @@ fun KaeruTabsScreen(
                 userAvatar = localAvatar,
                 hasUpdate = hasUpdate,
                 onAvatarClick = { showProfileDialog = true },
+                viewModel = viewModel,
+                visiblePackageCodes = historyList.map { it.code },
                 onSettingsClick = onNavigateToSettings
             )
         },
