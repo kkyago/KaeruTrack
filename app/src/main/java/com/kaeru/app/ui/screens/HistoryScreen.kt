@@ -61,9 +61,12 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 
 enum class OrderType { DATE_ADDED, ALPHABETIC, LAST_UPDATED }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     viewModel: TrackingViewModel,
@@ -126,6 +129,11 @@ fun HistoryScreen(
     val selectedPackages by viewModel.selectedPackages.collectAsState()
     val isSelectionMode = selectedPackages.isNotEmpty()
 
+    val listState = rememberLazyListState()
+    val showScrollToTopFab by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 1 }
+    }
+
     BackHandler(enabled = isSelectionMode) {
         viewModel.clearSelection()
     }
@@ -150,9 +158,32 @@ fun HistoryScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = Color.Transparent
+        containerColor = Color.Transparent,
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = showScrollToTopFab && !isSelectionMode,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = null
+                    )
+                }
+            }
+        }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .background(backgroundColor)
