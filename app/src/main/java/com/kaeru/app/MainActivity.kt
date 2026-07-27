@@ -360,7 +360,7 @@ fun TopAppBar(
             TopAppBar(
                 title = {
                     Text(
-                        "${selectedPackages.size} selecionados",
+                        stringResource(R.string.is_selected, selectedPackages.size),
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -381,7 +381,7 @@ fun TopAppBar(
                     )
 
                     IconButton(onClick = { showOverflowMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Mais opções")
+                        Icon(Icons.Default.MoreVert, contentDescription = null)
                     }
 
                     DropdownMenu(
@@ -389,7 +389,7 @@ fun TopAppBar(
                         onDismissRequest = { showOverflowMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Atualizar pacotes") },
+                            text = { Text(stringResource(R.string.update_packages)) },
                             leadingIcon = {
                                 Icon(Icons.Default.Refresh, contentDescription = null)
                             },
@@ -399,7 +399,7 @@ fun TopAppBar(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Deletar pacotes") },
+                            text = { Text(stringResource(R.string.delete_packages)) },
                             leadingIcon = {
                                 Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                             },

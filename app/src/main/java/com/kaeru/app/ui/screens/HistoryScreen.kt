@@ -254,7 +254,7 @@ fun HistoryScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
-                                contentDescription = "Pesquisar Encomenda",
+                                contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onBackground,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -434,7 +434,7 @@ fun HistoryCardNew(
                             if (selected) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
-                                    contentDescription = "Selecionado",
+                                    contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )

@@ -157,4 +157,7 @@
     <string name="unexpected_error_description">O aplicativo encontrou uma falha inesperada. Envie o log abaixo para ajudar a consertar.</string>
     <string name="restart_app">Reiniciar app</string>
     <string name="send_logs">Enviar logs</string>
+    <string name="is_selected">%1$d selecionados</string>
+    <string name="update_packages">Atualizar pacotes</string>
+    <string name="delete_packages">Deletar pacotes</string>
 </resources>

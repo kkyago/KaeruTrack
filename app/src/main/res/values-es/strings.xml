@@ -157,4 +157,7 @@
     <string name="unexpected_error_description">La aplicación encontró un fallo inesperado. ¡Envía el registro a continuación para ayudar a solucionarlo!</string>
     <string name="restart_app">Reiniciar aplicación</string>
     <string name="send_logs">Enviar registros</string>
+    <string name="is_selected">%1$d seleccionados</string>
+    <string name="update_packages">Actualizar paquetes</string>
+    <string name="delete_packages">Eliminar paquetes</string>
 </resources>

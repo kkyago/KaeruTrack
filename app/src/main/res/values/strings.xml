@@ -161,4 +161,7 @@
     <string name="unexpected_error_description">The app encountered an unexpected crash. Send the log below to help fix it.</string>
     <string name="restart_app">Restart app</string>
     <string name="send_logs">Send logs</string>
+    <string name="is_selected">%1$d selected</string>
+    <string name="update_packages">Update packages</string>
+    <string name="delete_packages">Delete packages</string>
 </resources>
