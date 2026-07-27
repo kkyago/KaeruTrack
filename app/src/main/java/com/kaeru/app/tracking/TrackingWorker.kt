@@ -5,82 +5,136 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.kaeru.app.BuildConfig
 import com.kaeru.app.tracking.database.AppDatabase
 import com.kaeru.app.tracking.utils.isDeliveredStatus
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import retrofit2.HttpException
+import java.io.IOException
 
 class TrackingWorker(
     appContext: Context,
     workerParams: WorkerParameters
 ) : CoroutineWorker(appContext, workerParams) {
 
-    override suspend fun doWork(): Result {
+    companion object {
+        private const val MAX_CONCURRENT_REQUESTS = 3
+        private const val REQUEST_TIMEOUT_MS = 30_000L
+    }
+
+    private sealed class ItemResult {
+        object Success : ItemResult()
+        object TransientFailure : ItemResult()
+        object PermanentFailure : ItemResult()
+    }
+
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val notificationHelper = NotificationHelper(applicationContext)
+
         if (!isNetworkAvailable(applicationContext)) {
-            return Result.success()
+            return@withContext Result.success()
         }
+
         val isFakeTest = inputData.getBoolean("is_fake_test", false)
-        if (isFakeTest) {
-            notificationHelper.showNotification("xxx", "xxx", "xxx")
-            return Result.success()
+        if (isFakeTest && BuildConfig.DEBUG) {
+            notificationHelper.showNotification("Teste", "Teste", "Entregue")
+            return@withContext Result.success()
         }
+
         val database = AppDatabase.getDatabase(applicationContext)
         val dao = database.trackingDao()
         val repository = TrackingRepository(applicationContext)
-        var hasFailedRequests = false
 
         try {
             val encomendasSalvas = dao.getAllTracking().first()
-            val encomendasPendentes = encomendasSalvas.filter { it.lastStatus?.isDeliveredStatus() != true }
-
-            if (encomendasPendentes.isEmpty()) {
-                return Result.success()
+            val encomendasPendentes = encomendasSalvas.filter {
+                it.lastStatus?.isDeliveredStatus() != true && it.notificationsEnabled
             }
 
-            coroutineScope {
-                val resultados = encomendasPendentes.mapIndexed { index, encomenda ->
+            if (encomendasPendentes.isEmpty()) {
+                return@withContext Result.success()
+            }
+
+            val semaphore = Semaphore(permits = MAX_CONCURRENT_REQUESTS)
+
+            val resultados = coroutineScope {
+                encomendasPendentes.map { encomenda ->
                     async {
-                        try {
-                            delay(index * 1000L)
-
-                            val response = repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
-                            val eventoMaisRecente = response?.events?.firstOrNull()
-                            val statusNovo = eventoMaisRecente?.status
-                            val dataHoraNovo = "${eventoMaisRecente?.date ?: ""} ${eventoMaisRecente?.time ?: ""}".trim()
-
-                            if (statusNovo != null && (statusNovo != encomenda.lastStatus || dataHoraNovo != encomenda.lastDate)) {
-                                val nomeExibicao = if (encomenda.description.isNotBlank() && encomenda.description != "Encomenda Sem Nome") {
-                                    encomenda.description
-                                } else {
-                                    encomenda.code
-                                }
-
-                                val updatedItem = encomenda.copy(
-                                    lastStatus = statusNovo,
-                                    lastDate = dataHoraNovo,
-                                    savedAt = System.currentTimeMillis()
-                                )
-                                dao.insertTracking(updatedItem)
-                                notificationHelper.showNotification(nomeExibicao, encomenda.code, statusNovo)
-                            }
-                            true
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            false
+                        semaphore.withPermit {
+                            processarEncomenda(encomenda, repository, dao, notificationHelper)
                         }
                     }
                 }.awaitAll()
-
-                hasFailedRequests = resultados.contains(false)
             }
-            return if (hasFailedRequests) Result.retry() else Result.success()
+
+            val temFalhaPermanente = resultados.any { it is ItemResult.PermanentFailure }
+            val temFalhaTransitoria = resultados.any { it is ItemResult.TransientFailure }
+
+            return@withContext when {
+                temFalhaTransitoria -> Result.retry()
+                temFalhaPermanente -> Result.success()
+                else -> Result.success()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
-            return Result.retry()
+            Result.retry()
+        }
+    }
+
+    private suspend fun processarEncomenda(
+        encomenda: com.kaeru.app.tracking.database.TrackingEntity,
+        repository: TrackingRepository,
+        dao: com.kaeru.app.tracking.database.TrackingDao,
+        notificationHelper: NotificationHelper
+    ): ItemResult {
+        return try {
+            val response = withTimeoutOrNull(REQUEST_TIMEOUT_MS) {
+                repository.trackPackage(encomenda.code, forceRefresh = true, cpf = encomenda.cpf)
+            } ?: return ItemResult.TransientFailure
+
+            val eventoMaisRecente = response.events?.firstOrNull()
+            val statusNovo = eventoMaisRecente?.status
+            val dataHoraNovo = "${eventoMaisRecente?.date ?: ""} ${eventoMaisRecente?.time ?: ""}".trim()
+
+            if (statusNovo != null && (statusNovo != encomenda.lastStatus || dataHoraNovo != encomenda.lastDate)) {
+                val nomeExibicao = if (encomenda.description.isNotBlank() && encomenda.description != "Encomenda Sem Nome") {
+                    encomenda.description
+                } else {
+                    encomenda.code
+                }
+
+                val updatedItem = encomenda.copy(
+                    lastStatus = statusNovo,
+                    lastDate = dataHoraNovo,
+                    savedAt = System.currentTimeMillis()
+                )
+
+                dao.insertTracking(updatedItem)
+
+                try {
+                    notificationHelper.showNotification(nomeExibicao, encomenda.code, statusNovo)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+            ItemResult.Success
+        } catch (e: HttpException) {
+            e.printStackTrace()
+            if (e.code() in 400..499) ItemResult.PermanentFailure else ItemResult.TransientFailure
+        } catch (e: IOException) {
+            e.printStackTrace()
+            ItemResult.TransientFailure
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ItemResult.TransientFailure
         }
     }
 

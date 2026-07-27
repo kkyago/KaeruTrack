@@ -16,7 +16,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
@@ -337,100 +341,176 @@ fun TopAppBar(
     packageCount: Int,
     userAvatar: String?,
     hasUpdate: Boolean,
+    viewModel: TrackingViewModel,
+    visiblePackageCodes: List<String>,
     onAvatarClick: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
-    val title = when (currentTab) {
-        AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
-        AppDestinations.HISTORY -> stringResource(R.string.packages)
-        AppDestinations.CHARTS -> stringResource(R.string.home_stats)
-        else -> "Kaeru"
-    }
+    val selectedPackages by viewModel.selectedPackages.collectAsState()
+    val isSelectionMode = selectedPackages.isNotEmpty()
 
-    TopAppBar(
-        title = {
-            Text(
-                text = title,
-                fontWeight = FontWeight.Bold
+    Crossfade(
+        targetState = isSelectionMode,
+        animationSpec = tween(durationMillis = 300),
+        label = "topBarFade"
+    ) { selectionModeAtivo ->
+
+        if (selectionModeAtivo) {
+            var showOverflowMenu by remember { mutableStateOf(false) }
+            TopAppBar(
+                title = {
+                    Text(
+                        stringResource(R.string.is_selected, selectedPackages.size),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { viewModel.clearSelection() }) {
+                        Icon(Icons.Default.Close, contentDescription = null)
+                    }
+                },
+                actions = {
+                    Checkbox(
+                        checked = selectedPackages.size == visiblePackageCodes.size && visiblePackageCodes.isNotEmpty(),
+                        onCheckedChange = { viewModel.selectAllPackages(visiblePackageCodes) },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = MaterialTheme.colorScheme.primary,
+                            checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                            uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+
+                    IconButton(onClick = { showOverflowMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = null)
+                    }
+
+                    DropdownMenu(
+                        expanded = showOverflowMenu,
+                        onDismissRequest = { showOverflowMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.update_packages)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                            },
+                            onClick = {
+                                viewModel.refreshSelectedPackages()
+                                showOverflowMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.delete_packages)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            },
+                            onClick = {
+                                viewModel.deleteSelectedPackages()
+                                showOverflowMenu = false
+                            }
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-            actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-        ),
-        actions = {
-            IconButton(onClick = onSettingsClick) {
-                BadgedBox(
-                    badge = {
-                        if (hasUpdate) {
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.error
+        } else {
+
+            val title = when (currentTab) {
+                AppDestinations.SEARCH -> stringResource(R.string.search_tab_label)
+                AppDestinations.HISTORY -> stringResource(R.string.packages)
+                AppDestinations.CHARTS -> stringResource(R.string.home_stats)
+                else -> "Kaeru"
+            }
+
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                actions = {
+                    IconButton(onClick = onSettingsClick) {
+                        BadgedBox(
+                            badge = {
+                                if (hasUpdate) {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Settings,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
 
-            if (currentTab == AppDestinations.HISTORY) {
-                if (packageCount > 0) {
-                    IconButton(
-                        onClick = onAvatarClick,
-                    ) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .height(26.dp)
-                                .widthIn(min = 26.dp)
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.padding(horizontal = 8.dp)
+                    if (currentTab == AppDestinations.HISTORY) {
+                        if (packageCount > 0) {
+                            IconButton(
+                                onClick = onAvatarClick,
                             ) {
-                                Text(
-                                    if (packageCount > 99) "99+" else packageCount.toString(),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = if (packageCount > 99) 9.sp else 12.sp
-                                )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape,
+                                    modifier = Modifier
+                                        .height(26.dp)
+                                        .widthIn(min = 26.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    ) {
+                                        Text(
+                                            if (packageCount > 99) "99+" else packageCount.toString(),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = if (packageCount > 99) 9.sp else 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onAvatarClick,
+                        ) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = CircleShape,
+                                modifier = Modifier.size(26.dp)
+                            ) {
+                                if (!userAvatar.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = userAvatar,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(6.dp)
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            } else {
-                IconButton(
-                    onClick = onAvatarClick,
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = CircleShape,
-                        modifier = Modifier.size(26.dp)
-                    ) {
-                        if (!userAvatar.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = userAvatar,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(6.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        },
-    )
+                },
+            )
+        }
+    }
 }

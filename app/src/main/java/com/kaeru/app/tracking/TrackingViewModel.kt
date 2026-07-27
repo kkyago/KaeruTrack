@@ -51,6 +51,8 @@ import java.time.LocalDate
 import java.time.DayOfWeek
 import kotlinx.coroutines.flow.*
 import com.kaeru.app.ui.screens.KaeruStatPeriod
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlinx.serialization.json.Json
@@ -290,7 +292,7 @@ class TrackingViewModel(
                 .build()
 
             val periodicRequest = PeriodicWorkRequestBuilder<TrackingWorker>(
-                1, TimeUnit.HOURS
+                20, TimeUnit.MINUTES
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(
@@ -361,6 +363,89 @@ class TrackingViewModel(
     fun restoreTracking(item: TrackingEntity) {
         viewModelScope.launch {
             dao.insertTracking(item)
+        }
+    }
+    private val _undoDeleteEvent = MutableSharedFlow<List<TrackingEntity>>()
+    val undoDeleteEvent = _undoDeleteEvent.asSharedFlow()
+
+    fun restorePackages(packages: List<TrackingEntity>) {
+        viewModelScope.launch {
+            dao.insertAll(packages)
+        }
+    }
+
+    var isRefreshing by mutableStateOf(false)
+
+    private val _selectedPackages = MutableStateFlow<Set<String>>(emptySet())
+    val selectedPackages: StateFlow<Set<String>> = _selectedPackages.asStateFlow()
+
+    fun togglePackageSelection(code: String) {
+        val currentSet = _selectedPackages.value.toMutableSet()
+        if (currentSet.contains(code)) {
+            currentSet.remove(code)
+        } else {
+            currentSet.add(code)
+        }
+        _selectedPackages.value = currentSet
+    }
+
+    fun clearSelection() {
+        _selectedPackages.value = emptySet()
+    }
+    fun refreshSelectedPackages() {
+        val codes = _selectedPackages.value
+        if (codes.isEmpty()) return
+
+        viewModelScope.launch {
+            isRefreshing = true
+            val toRefresh = historyList.value.filter { it.code in codes }
+
+            toRefresh.map { encomenda ->
+                async(Dispatchers.IO) {
+                    try {
+                        val response = repository.trackPackage(encomenda.code, forceRefresh = true, carrier = encomenda.carrier, cpf = encomenda.cpf)
+                        val latestEvent = response?.events?.firstOrNull()
+                        if (latestEvent != null) {
+                            val updatedItem = encomenda.copy(
+                                lastStatus = latestEvent.status ?: encomenda.lastStatus,
+                                lastDate = "${latestEvent.date ?: ""} ${latestEvent.time ?: ""}".trim(),
+                                savedAt = System.currentTimeMillis()
+                            )
+                            dao.insertTracking(updatedItem)
+                        }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            }.awaitAll()
+
+            isRefreshing = false
+            clearSelection()
+        }
+    }
+
+    fun deleteSelectedPackages() {
+        val codes = _selectedPackages.value
+        if (codes.isEmpty()) return
+
+        viewModelScope.launch {
+            val itemsToDelete = historyList.value.filter { it.code in codes }
+
+            codes.forEach { dao.deleteTracking(it) }
+            clearSelection()
+
+            _undoDeleteEvent.emit(itemsToDelete)
+        }
+    }
+
+    fun selectAllPackages(allVisibleCodes: List<String>) {
+        if (_selectedPackages.value.size == allVisibleCodes.size) {
+            _selectedPackages.value = emptySet()
+        } else {
+            _selectedPackages.value = allVisibleCodes.toSet()
+        }
+    }
+    fun toggleNotifications(code: String, currentStatus: Boolean) {
+        viewModelScope.launch {
+            dao.updateNotificationStatus(code, !currentStatus)
         }
     }
     private suspend fun updateHistoryStatusIfExists(code: String, response: TrackingResponse) {

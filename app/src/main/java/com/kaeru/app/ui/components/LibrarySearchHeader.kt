@@ -77,7 +77,7 @@ fun LibrarySearchHeader(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Fechar Pesquisa",
+                    contentDescription = null,
                 )
             }
         } else {
