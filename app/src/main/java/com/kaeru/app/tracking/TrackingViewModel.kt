@@ -166,6 +166,9 @@ class TrackingViewModel(
     var showCpfDialog by mutableStateOf(false)
     var pendingJtCode by mutableStateOf("")
     var currentCpf by mutableStateOf<String?>(null)
+    var showMagalogCpfDialog by mutableStateOf(false)
+    private var pendingMagalogCode by mutableStateOf("")
+    private var pendingMagalogCarrier by mutableStateOf("")
 
     fun toggleSwipeToDelete(enabled: Boolean) {
         _isSwipeToDeleteEnabled.value = enabled
@@ -196,6 +199,15 @@ class TrackingViewModel(
         _defaultHistoryFilter.value = filter
         prefs.edit().putString("default_filter", filter.name).apply()
     }
+
+    fun submitMagalogCpf(cpfDigits: String) {
+        showMagalogCpfDialog = false
+        errorMessage = null
+        if (pendingMagalogCode.isNotBlank() && cpfDigits.isNotBlank()) {
+            trackPackage(code = pendingMagalogCode, carrier = pendingMagalogCarrier, providedCpf = cpfDigits)
+        }
+    }
+
     private var searchJob: Job? = null
     fun trackPackage(code: String, carrier: String = "Auto", providedCpf: String? = null) {
         searchJob?.cancel()
@@ -213,7 +225,18 @@ class TrackingViewModel(
         isLoading = true
         searchJob = viewModelScope.launch {
             var resolvedCpf = providedCpf
-            if (cleanCode.length >= 10 && cleanCode.all { it.isDigit() }) {
+            val isMagalogManual = carrier.equals("Magalog", ignoreCase = true) && !cleanCode.startsWith("MLG")
+            val isNumericCode = cleanCode.length >= 10 && cleanCode.all { it.isDigit() }
+
+            if (isMagalogManual && providedCpf.isNullOrBlank()) {
+                pendingMagalogCode = cleanCode
+                pendingMagalogCarrier = carrier
+                showMagalogCpfDialog = true
+                isLoading = false
+                return@launch
+            }
+
+            if (isNumericCode) {
                 val cpfToUse = providedCpf ?: savedItem?.cpf ?: currentCpf
 
                 if (cpfToUse.isNullOrEmpty()) {

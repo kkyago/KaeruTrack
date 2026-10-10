@@ -322,6 +322,7 @@ fun TextFieldDialog(
 fun CpfInputDialog(
     title: String,
     message: String,
+    maxLength: Int = 11,
     onDismiss: () -> Unit,
     onSubmit: (String) -> Unit
 ) {
@@ -344,7 +345,7 @@ fun CpfInputDialog(
                 onClick = {
                     onSubmit(cpfInput)
                 },
-                enabled = cpfInput.length == 11
+                enabled = cpfInput.length == maxLength
             ) {
                 Text(stringResource(android.R.string.ok))
             }
@@ -364,18 +365,22 @@ fun CpfInputDialog(
                 value = cpfInput,
                 onValueChange = { novoValor ->
                     val apenasNumeros = novoValor.filter { it.isDigit() }
-                    if (apenasNumeros.length <= 11) {
+                    if (apenasNumeros.length <= maxLength) {
                         cpfInput = apenasNumeros
                     }
                 },
-                label = { Text(stringResource(R.string.cpf_only_numbers)) },
+                label = {
+                    Text(
+                        if (maxLength == 4) "4 dígitos do CPF" else stringResource(R.string.cpf_only_numbers)
+                    )
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = {
-                        if (cpfInput.length == 11) {
+                        if (cpfInput.length == maxLength) {
                             onDismiss()
                             onSubmit(cpfInput)
                         }

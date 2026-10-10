@@ -27,6 +27,9 @@ enum class TrackingCarrier(val nameRes: Int) {
     CORREIOS(R.string.carrier_correios) {
         override fun matches(code: String) = code.matches(Regex("[A-Z]{2}[0-9]{9}BR")) || (listOf("AD", "AB", "AN").any { code.startsWith(it) } && code.length >= 12)
     },
+    MAGALOG(R.string.carrier_magalog) {
+        override fun matches(code: String) = code.startsWith("MLG")
+    },
     UNKNOWN(R.string.unknown) {
         override fun matches(code: String) = false
     };

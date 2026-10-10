@@ -77,7 +77,7 @@ fun ResultScreen(
         }
     }
 
-    if (viewModel.isLoading || viewModel.showCpfDialog) {
+    if (viewModel.isLoading || viewModel.showCpfDialog || viewModel.showMagalogCpfDialog) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
@@ -96,6 +96,27 @@ fun ResultScreen(
         ) { padding ->
             Box(modifier = Modifier.padding(padding)) {
                 TrackingShimmerSkeleton()
+
+                if (viewModel.showMagalogCpfDialog) {
+                    val isError = viewModel.errorMessage?.contains("CPF", ignoreCase = true) == true
+                    CpfInputDialog(
+                        title = if (isError) "CPF Incorreto" else "CPF Necessário",
+                        message = if (isError) {
+                            "O CPF informado para o código $trackingCode não é válido. Digite os 4 dígitos do CPF novamente:"
+                        } else {
+                            "Para rastrear a encomenda $trackingCode pela Magalog, informe os 4 primeiros dígitos do CPF do destinatário:"
+                        },
+                        maxLength = 4,
+                        onDismiss = {
+                            viewModel.showMagalogCpfDialog = false
+                            viewModel.errorMessage = null
+                            onBack()
+                        },
+                        onSubmit = { cpfDigitado ->
+                            viewModel.submitMagalogCpf(cpfDigitado)
+                        }
+                    )
+                }
 
                 if (viewModel.showCpfDialog) {
                     val isError = viewModel.errorMessage?.contains("CPF", ignoreCase = true) == true

@@ -38,6 +38,7 @@
     <string name="carrier_loggi">Loggi</string>
     <string name="carrier_shopee_xpress">Shopee Xpress</string>
     <string name="carrier_total_express">Total Express</string>
+    <string name="carrier_magalog">MagaLog</string>
     <string name="items_in_transit">Items in transit</string>
     <string name="statistics">Statistics</string>
     <string name="delivered_items">Delivered items</string>

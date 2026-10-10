@@ -28,6 +28,7 @@ class TrackingRepository(private val context: Context) {
             override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
                 cookieStore[url.host] = cookies
             }
+
             override fun loadForRequest(url: HttpUrl): List<Cookie> {
                 return cookieStore[url.host] ?: listOf()
             }
@@ -44,7 +45,12 @@ class TrackingRepository(private val context: Context) {
         return TrackingCarrier.fromCode(code) != TrackingCarrier.UNKNOWN
     }
 
-    suspend fun trackPackage(code: String, forceRefresh: Boolean = false, carrier: String = "Auto", cpf: String? = null): TrackingResponse? {
+    suspend fun trackPackage(
+        code: String,
+        forceRefresh: Boolean = false,
+        carrier: String = "Auto",
+        cpf: String? = null
+    ): TrackingResponse? {
         val cleanCode = code.trim().uppercase()
 
         if (!forceRefresh) {
@@ -63,6 +69,7 @@ class TrackingRepository(private val context: Context) {
             context.getString(R.string.carrier_melhor_envio) -> trackMelhorRastreioFree(cleanCode)
             context.getString(R.string.carrier_total_express) -> trackViaTotalExpress(cleanCode)
             context.getString(R.string.carrier_jt) -> trackViaJTExpress(cleanCode, cpf)
+            context.getString(R.string.carrier_magalog) -> trackViaMagalog(cleanCode, cpf)
             else -> {
                 val carrier = TrackingCarrier.fromCode(cleanCode)
                 return when (carrier) {
@@ -74,6 +81,7 @@ class TrackingRepository(private val context: Context) {
                     TrackingCarrier.TOTAL_EXPRESS -> trackViaTotalExpress(cleanCode)
                     TrackingCarrier.CORREIOS -> trackViaLinketrackWebView(cleanCode)
                     TrackingCarrier.JT_EXPRESS -> trackViaJTExpress(cleanCode, cpf)
+                    TrackingCarrier.MAGALOG -> trackViaMagalog(cleanCode, cpf)
                     TrackingCarrier.UNKNOWN -> null
                 }
             }
@@ -89,10 +97,14 @@ class TrackingRepository(private val context: Context) {
     private suspend fun trackViaSpx(code: String): TrackingResponse? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://spx.com.br/shipment/order/open/order/get_order_info?spx_tn=$code&language_code=pt"
+                val url =
+                    "https://spx.com.br/shipment/order/open/order/get_order_info?spx_tn=$code&language_code=pt"
                 val request = Request.Builder()
                     .url(url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                    .header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    )
                     .build()
                 val response = client.newCall(request).execute()
                 val bodyString = response.body?.string() ?: return@withContext null
@@ -101,7 +113,8 @@ class TrackingRepository(private val context: Context) {
                 val records = rawData.data?.slsTrackingInfo?.records ?: return@withContext null
                 val uiEvents = records.map { record ->
                     val dateObj = java.util.Date(record.actualTime * 1000L)
-                    val sdfDate = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+                    val sdfDate =
+                        java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
                     val sdfTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                     val d = sdfDate.format(dateObj)
                     val t = sdfTime.format(dateObj)
@@ -130,7 +143,8 @@ class TrackingRepository(private val context: Context) {
                 if (cpf.isNullOrBlank()) {
                     return@withContext null
                 }
-                val url = "https://official.jtjms-br.com/official/logisticsTracking/v2/getDetailByWaybillNo"
+                val url =
+                    "https://official.jtjms-br.com/official/logisticsTracking/v2/getDetailByWaybillNo"
                 val appId = "3B29A9C5728BF3E1DB0C4D66B79748B7"
                 val key = "94bbcac67ab47c736d530efe3e1dc358"
                 val time = System.currentTimeMillis().toString()
@@ -151,7 +165,10 @@ class TrackingRepository(private val context: Context) {
                     .addHeader("clientSource", "web")
                     .addHeader("timezone", "GMT-0300")
                     .addHeader("Origin", "https://www.jtexpress.com.br")
-                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .addHeader(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                    )
                     .build()
                 val response = client.newCall(request).execute()
                 val bodyString = response.body?.string() ?: return@withContext null
@@ -165,7 +182,7 @@ class TrackingRepository(private val context: Context) {
                     val d = try {
                         val s = parts.getOrElse(0) { "" }.split("-")
                         "${s[2]}/${s[1]}/${s[0]}"
-                    } catch(e: Exception) {
+                    } catch (e: Exception) {
                         parts.getOrElse(0) { "" }
                     }
                     var loc = "Nacional"
@@ -197,13 +214,20 @@ class TrackingRepository(private val context: Context) {
     private suspend fun trackViaTotalExpress(code: String): TrackingResponse? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://totalconecta.totalexpress.com.br/mfe-rastreio/api/order-data?awb=$code&language=pt"
+                val url =
+                    "https://totalconecta.totalexpress.com.br/mfe-rastreio/api/order-data?awb=$code&language=pt"
                 val request = Request.Builder()
                     .url(url)
-                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+                    .addHeader(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    )
                     .addHeader("Accept", "application/json, text/plain, */*")
                     .addHeader("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
-                    .addHeader("Sec-Ch-Ua", "\"Chromium\";v=\"122\", \"Not(A:Brand\";v=\"24\", \"Google Chrome\";v=\"122\"")
+                    .addHeader(
+                        "Sec-Ch-Ua",
+                        "\"Chromium\";v=\"122\", \"Not(A:Brand\";v=\"24\", \"Google Chrome\";v=\"122\""
+                    )
                     .addHeader("Sec-Ch-Ua-Mobile", "?0")
                     .addHeader("Sec-Ch-Ua-Platform", "\"Windows\"")
                     .addHeader("Sec-Fetch-Dest", "empty")
@@ -242,7 +266,8 @@ class TrackingRepository(private val context: Context) {
                                     status = status.statusDescricao ?: "Atualização",
                                     date = formattedDate,
                                     time = status.hora ?: "",
-                                    location = status.mensagemEvaTraducao?.mensagemEva ?: "Total Express",
+                                    location = status.mensagemEvaTraducao?.mensagemEva
+                                        ?: "Total Express",
                                     subStatus = null
                                 )
                             )
@@ -253,7 +278,10 @@ class TrackingRepository(private val context: Context) {
                 if (events.isEmpty()) {
                     return@withContext null
                 }
-                return@withContext TrackingResponse(tracking_code = code, events = events.reversed())
+                return@withContext TrackingResponse(
+                    tracking_code = code,
+                    events = events.reversed()
+                )
 
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -376,7 +404,14 @@ class TrackingRepository(private val context: Context) {
                 if (items.isEmpty()) return@withContext null
                 val events = items.map { item ->
                     val parts = item.select(".progress-time").text().trim().split(" ")
-                    TrackingEvent(status = item.select(".progress-title").text().trim().ifBlank { "Status" }, date = parts.getOrNull(0) ?: "", time = parts.getOrNull(1) ?: "", location = item.select(".progress-desc").text().trim().ifBlank { "Em trânsito" }, subStatus = null)
+                    TrackingEvent(
+                        status = item.select(".progress-title").text().trim().ifBlank { "Status" },
+                        date = parts.getOrNull(0) ?: "",
+                        time = parts.getOrNull(1) ?: "",
+                        location = item.select(".progress-desc").text().trim()
+                            .ifBlank { "Em trânsito" },
+                        subStatus = null
+                    )
                 }.toMutableList()
                 return@withContext TrackingResponse(tracking_code = code, events = events)
             } catch (e: Exception) {
@@ -388,7 +423,9 @@ class TrackingRepository(private val context: Context) {
     private suspend fun trackCainiaoFree(code: String): TrackingResponse? {
         return withContext(Dispatchers.IO) {
             try {
-                val request = Request.Builder().url("https://global.cainiao.com/global/detail.json?mailNos=$code&lang=pt-BR").build()
+                val request = Request.Builder()
+                    .url("https://global.cainiao.com/global/detail.json?mailNos=$code&lang=pt-BR")
+                    .build()
                 val response = client.newCall(request).execute()
                 val bodyString = response.body?.string() ?: return@withContext null
                 val rawData = jsonParser.decodeFromString<CainiaoResponse>(bodyString)
@@ -396,11 +433,25 @@ class TrackingRepository(private val context: Context) {
                 val packageData = rawData.modules?.firstOrNull() ?: return@withContext null
                 val uiEvents = packageData.details?.map { detail ->
                     val parts = (detail.dateString ?: "").split(" ")
-                    val d = try { val s = parts.getOrElse(0){""}.split("-"); "${s[2]}/${s[1]}/${s[0]}" } catch(e:Exception){parts.getOrElse(0){""}}
-                    var loc = "Internacional"; var stat = detail.statusDescription ?: detail.altDescription ?: "Status"
+                    val d = try {
+                        val s = parts.getOrElse(0) { "" }.split("-"); "${s[2]}/${s[1]}/${s[0]}"
+                    } catch (e: Exception) {
+                        parts.getOrElse(0) { "" }
+                    }
+                    var loc = "Internacional";
+                    var stat = detail.statusDescription ?: detail.altDescription ?: "Status"
                     val m = Regex("^\\[(.*?)\\](.*)").find(stat)
-                    if(m!=null){ loc=m.groupValues[1].trim(); stat=m.groupValues[2].trim().removePrefix("-").trim() }
-                    TrackingEvent(status=stat, date=d, time=parts.getOrElse(1){""}, location=loc, subStatus=null)
+                    if (m != null) {
+                        loc = m.groupValues[1].trim(); stat =
+                            m.groupValues[2].trim().removePrefix("-").trim()
+                    }
+                    TrackingEvent(
+                        status = stat,
+                        date = d,
+                        time = parts.getOrElse(1) { "" },
+                        location = loc,
+                        subStatus = null
+                    )
                 }
                 return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
             } catch (e: Exception) {
@@ -412,19 +463,125 @@ class TrackingRepository(private val context: Context) {
     private suspend fun trackMelhorRastreioFree(code: String): TrackingResponse? {
         return withContext(Dispatchers.IO) {
             try {
-                val body = """{"operationName":"searchParcel","variables":{"tracker":{"trackingCode":"$code","type":"melhorenvio"}},"query":"mutation searchParcel(${"$"}tracker:TrackerSearchInput!){result:searchParcel(tracker:${"$"}tracker){trackingEvents{title createdAt from description}}}"}""".toRequestBody("application/json".toMediaType())
-                val req = Request.Builder().url("https://melhor-rastreio-api.melhorrastreio.com.br/graphql").post(body).header("User-Agent","Mozilla/5.0").build()
+                val body =
+                    """{"operationName":"searchParcel","variables":{"tracker":{"trackingCode":"$code","type":"melhorenvio"}},"query":"mutation searchParcel(${"$"}tracker:TrackerSearchInput!){result:searchParcel(tracker:${"$"}tracker){trackingEvents{title createdAt from description}}}"}""".toRequestBody(
+                        "application/json".toMediaType()
+                    )
+                val req = Request.Builder()
+                    .url("https://melhor-rastreio-api.melhorrastreio.com.br/graphql").post(body)
+                    .header("User-Agent", "Mozilla/5.0").build()
                 val res = client.newCall(req).execute()
                 val bodyString = res.body?.string() ?: return@withContext null
                 val data = jsonParser.decodeFromString<MelhorEnvioResponse>(bodyString)
 
                 val evs = data.data?.result?.events?.map {
-                    val iso = it.createdAt?:""; val p = if(iso.contains("T")) iso.split("T") else listOf(iso,"")
-                    val d = try{val s=p[0].split("-"); "${s[2]}/${s[1]}/${s[0]}"}catch(e:Exception){p[0]}
-                    TrackingEvent(status=it.title?:"", date=d, time=p[1].take(5), location=it.fromLocation?:"", subStatus=null)
+                    val iso = it.createdAt ?: "";
+                    val p = if (iso.contains("T")) iso.split("T") else listOf(iso, "")
+                    val d = try {
+                        val s = p[0].split("-"); "${s[2]}/${s[1]}/${s[0]}"
+                    } catch (e: Exception) {
+                        p[0]
+                    }
+                    TrackingEvent(
+                        status = it.title ?: "",
+                        date = d,
+                        time = p[1].take(5),
+                        location = it.fromLocation ?: "",
+                        subStatus = null
+                    )
                 }?.reversed() ?: return@withContext null
                 return@withContext TrackingResponse(tracking_code = code, events = evs)
-            } catch(e:Exception){
+            } catch (e: Exception) {
+                throw e
+            }
+        }
+    }
+
+    private suspend fun trackViaMagalog(code: String, cpf: String?): TrackingResponse? {
+        return withContext(Dispatchers.IO) {
+            try {
+                var targetCode = code
+
+                if (!code.startsWith("MLG")) {
+                    if (cpf.isNullOrBlank()) {
+                        return@withContext null
+                    }
+                    val documentDigits = cpf.takeLast(4)
+
+                    var summaryUrl = "https://tracking-bff.mglu.io/v1/shippings/summary?grouper_code=$code&document_digits=$documentDigits"
+                    var summaryRes = client.newCall(Request.Builder().url(summaryUrl).addHeader("User-Agent", "Mozilla/5.0").addHeader("Referer", "https://rastreio.magalog.com.br/").build()).execute()
+
+                    var summaryBody = if (summaryRes.isSuccessful) summaryRes.body?.string() else null
+                    var summaries = emptyList<MagalogSummaryResponse>()
+
+                    if (!summaryBody.isNullOrBlank()) {
+                        try {
+                            summaries = jsonParser.decodeFromString<List<MagalogSummaryResponse>>(summaryBody)
+                        } catch (e: Exception) { e.printStackTrace() }
+                    }
+
+                    if (summaries.isEmpty()) {
+                        summaryUrl = "https://tracking-bff.mglu.io/v1/shippings/summary?invoice_number=$code&document_digits=$documentDigits"
+                        summaryRes = client.newCall(Request.Builder().url(summaryUrl).addHeader("User-Agent", "Mozilla/5.0").addHeader("Referer", "https://rastreio.magalog.com.br/").build()).execute()
+
+                        summaryBody = if (summaryRes.isSuccessful) summaryRes.body?.string() else null
+                        if (!summaryBody.isNullOrBlank()) {
+                            try {
+                                summaries = jsonParser.decodeFromString<List<MagalogSummaryResponse>>(summaryBody)
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                    }
+
+                    targetCode = summaries.firstOrNull()?.externalCode ?: return@withContext null
+                }
+
+                val queryParam = if (targetCode.startsWith("MLG")) "code_id" else "external_code"
+                val url = "https://tracking-bff.mglu.io/v1/shippings?$queryParam=$targetCode"
+
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .addHeader("Accept", "application/json, text/plain, */*")
+                    .addHeader("Referer", "https://rastreio.magalog.com.br/")
+                    .addHeader("Origin", "https://rastreio.magalog.com.br")
+                    .build()
+
+                val response = client.newCall(request).execute()
+                val bodyString = response.body?.string() ?: return@withContext null
+                if (!response.isSuccessful) return@withContext null
+
+                val rawData = jsonParser.decodeFromString<MagalogResponse>(bodyString)
+                val steps = rawData.tracking?.steps ?: return@withContext null
+                if (steps.isEmpty()) return@withContext null
+
+                val uiEvents = steps.map { step ->
+                    val rawIso = step.occurredAt ?: ""
+                    val dateParts = rawIso.split("T")
+                    val datePart = dateParts.getOrNull(0) ?: ""
+                    val timePart = dateParts.getOrNull(1)?.take(5) ?: ""
+
+                    val formattedDate = try {
+                        val s = datePart.split("-")
+                        if (s.size == 3) "${s[2]}/${s[1]}/${s[0]}" else datePart
+                    } catch (e: Exception) {
+                        datePart
+                    }
+
+                    val title = step.title?.trim() ?: "Atualização"
+                    val desc = step.details?.trim()?.ifBlank { "Magalog" } ?: "Magalog"
+
+                    TrackingEvent(
+                        status = title,
+                        date = formattedDate,
+                        time = timePart,
+                        location = desc,
+                        subStatus = null
+                    )
+                }.reversed()
+
+                return@withContext TrackingResponse(tracking_code = code, events = uiEvents)
+
+            } catch (e: Exception) {
                 throw e
             }
         }
