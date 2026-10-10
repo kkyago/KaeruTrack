@@ -225,23 +225,38 @@ class TrackingViewModel(
         isLoading = true
         searchJob = viewModelScope.launch {
             var resolvedCpf = providedCpf
-            val isMagalogManual = carrier.equals("Magalog", ignoreCase = true) && !cleanCode.startsWith("MLG")
+            val isMagalogManual = resolvedCarrier.equals("Magalog", ignoreCase = true) && !cleanCode.startsWith("MLG")
             val isNumericCode = cleanCode.length >= 10 && cleanCode.all { it.isDigit() }
 
             if (isMagalogManual && providedCpf.isNullOrBlank()) {
                 pendingMagalogCode = cleanCode
-                pendingMagalogCarrier = carrier
+                pendingMagalogCarrier = resolvedCarrier
                 showMagalogCpfDialog = true
                 isLoading = false
                 return@launch
             }
 
-            if (isNumericCode) {
-                val cpfToUse = providedCpf ?: savedItem?.cpf ?: currentCpf
-
+            if (!providedCpf.isNullOrBlank()) {
+                resolvedCpf = providedCpf
+                currentCpf = providedCpf
+            }
+            else if (isNumericCode) {
+                val cpfToUse = savedItem?.cpf ?: currentCpf
                 if (cpfToUse.isNullOrEmpty()) {
                     pendingJtCode = cleanCode
                     showCpfDialog = true
+                    isLoading = false
+                    return@launch
+                }
+                resolvedCpf = cpfToUse
+                currentCpf = cpfToUse
+            }
+            else if (isMagalogManual) {
+                val cpfToUse = savedItem?.cpf ?: currentCpf
+                if (cpfToUse.isNullOrEmpty()) {
+                    pendingMagalogCode = cleanCode
+                    pendingMagalogCarrier = resolvedCarrier
+                    showMagalogCpfDialog = true
                     isLoading = false
                     return@launch
                 }
